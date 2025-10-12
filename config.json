@@ -1,0 +1,136 @@
+{
+  "cams": [
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1498047275",
+      "street": "Дзержинского - Салмышская"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1505721782",
+      "street": "Победы - Автоматики"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1505473975",
+      "street": "Победы - Шевченко"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1715944809",
+      "street": "Рокоссовского разворот"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-424",
+      "street": "Салмышская - Гаранькина"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1689338108MFY826",
+      "street": "Терешковой - Рокоссовского"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-389",
+      "street": "Чкалова - Уральская"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-414",
+      "street": "Шевченко - Леушинская"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1631079321GRR302",
+      "street": "Победы - Полигонная"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1689135915DFD23",
+      "street": "Карагандинская, д 37Б"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-391",
+      "street": "Гагарина - 60 лет Октября"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1508408924",
+      "street": "Жукова -  Краснознамённая"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1682492709XNQ76",
+      "street": "Цвиллинга, д 69"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1688621139POM320",
+      "street": "Гагарина, д 2Ж"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-400",
+      "street": "Жукова - Туркестанская"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1581078823GZM248",
+      "street": "Чкалова - Степана Разина"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1582875928SNC916",
+      "street": "С. Разина - Аксакова"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1716193328PFM85",
+      "street": "Туркестанская - ул. Парковская"
+    },
+    {
+      "link": "http://maps.ufanet.ru/orenburg#1590149334TKB486",
+      "street": "Промысловый - Газовиков"
+    },
+    {
+      "street": "Победы - Орская",
+      "link": "http://maps.ufanet.ru/orenburg#1551184185"
+    },
+    {
+      "street": "ул.Комсомольская -ул.1 мая",
+      "link": "http://maps.ufanet.ru/orenburg#1680255908JDS994"
+    }
+  ],
+  "groups": [
+    {
+      "name": "Группа 1",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1498047275",
+        "http://maps.ufanet.ru/orenburg#1505721782",
+        "http://maps.ufanet.ru/orenburg#1505473975",
+        "http://maps.ufanet.ru/orenburg#1715944809",
+        "http://maps.ufanet.ru/orenburg#001-999-8-424",
+        "http://maps.ufanet.ru/orenburg#1689338108MFY826",
+        "http://maps.ufanet.ru/orenburg#001-999-8-389",
+        "http://maps.ufanet.ru/orenburg#001-999-8-414",
+        "http://maps.ufanet.ru/orenburg#1631079321GRR302"
+      ],
+      "current": true
+    },
+    {
+      "name": "Группа 2",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1689135915DFD23",
+        "http://maps.ufanet.ru/orenburg#001-999-8-391",
+        "http://maps.ufanet.ru/orenburg#1508408924",
+        "http://maps.ufanet.ru/orenburg#1682492709XNQ76",
+        "http://maps.ufanet.ru/orenburg#1688621139POM320",
+        "http://maps.ufanet.ru/orenburg#001-999-8-400",
+        "http://maps.ufanet.ru/orenburg#1581078823GZM248",
+        "http://maps.ufanet.ru/orenburg#1582875928SNC916",
+        "http://maps.ufanet.ru/orenburg#1716193328PFM85"
+      ],
+      "current": false
+    },
+    {
+      "name": "Другие камеры",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1590149334TKB486",
+        "http://maps.ufanet.ru/orenburg#1551184185",
+        "http://maps.ufanet.ru/orenburg#1680255908JDS994",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "current": false
+    }
+  ],
+  "period": 2
+}

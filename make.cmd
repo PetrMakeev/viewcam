@@ -1,0 +1,2 @@
+rem pyinstaller --name viewcam --onefile --noconsole --add-data "icons;icons" --add-data "chromedriver.exe;." --icon="icons/eye.ico" main.py
+pyinstaller --name viewcam --onefile --add-data "resource;icons" --icon="resource/eye.ico" --add-binary "chromedriver.exe;."  main.py
