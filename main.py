@@ -83,11 +83,11 @@ class MainApp(tk.Tk):
         self.title("Видеонаблюдение")
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight() - 50
-        self.geometry(f"{screen_width}x{screen_height}+0+0")
+        self.geometry(f"{screen_width - 10}x{screen_height - 15}+0+0")
         
         # Сохраняем размеры ячеек
-        self.cell_width = (screen_width - 300) // 3
-        self.cell_height = screen_height // 3
+        self.cell_width = (screen_width - 10 - 300) // 3
+        self.cell_height = (screen_height - 15) // 3
         
         # Кэширование масштабированных изображений для ячеек
         nocam_img = Image.open("resource/nocam.png")
@@ -100,7 +100,7 @@ class MainApp(tk.Tk):
         
         # Кэширование изображений для дерева
         checked_img = Image.open("resource/ui-check-box.png")
-        checked_img = checked_img.resize((16, 16), Image.LANCZOS)  # Масштабируем до стандартного размера иконки
+        checked_img = checked_img.resize((16, 16), Image.LANCZOS)
         self.checked_photo = ImageTk.PhotoImage(checked_img)
         
         unchecked_img = Image.open("resource/ui-check-box-uncheck.png")
@@ -119,34 +119,98 @@ class MainApp(tk.Tk):
         self.selected_camera = None
         self.drivers = []  # Список из 9 фиксированных драйверов
         
+        # Настройка стиля для комбобоксов
+        style = ttk.Style()
+        style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))  # Устанавливаем одинаковые отступы для унификации высоты
+        
         # Левая панель
         left_frame = tk.Frame(self, width=300)
         left_frame.pack(side=tk.LEFT, fill=tk.Y)
         
-        self.add_camera_button = Button(left_frame, text="Добавить камеру", font=Font(family="Arial", size=11), command=self.add_camera)
-        self.add_camera_button.pack(fill=tk.X)
-        
-        self.reload_button = Button(left_frame, text="Reload", font=Font(family="Arial", size=11), command=self.reload_drivers)
-        self.reload_button.pack(fill=tk.X)
-        
         self.tree = ttk.Treeview(left_frame, show="tree")
-        self.tree.pack(expand=True, fill=tk.BOTH)
+        self.tree.pack(expand=True, fill=tk.BOTH, padx=3, pady=3)
         self.update_camera_list()
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         
-        # Правая панель: сетка 3x3
+        # Правая часть: верхний фрейм с элементами управления и сетка камер
         right_frame = tk.Frame(self)
-        right_frame.pack(expand=True, fill=tk.BOTH)
+        right_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+        
+        # Верхний фрейм для кнопок и комбобоксов
+        top_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
+        top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+        
+        # Внутренний фрейм для центрирования элементов
+        controls_frame = tk.Frame(top_frame)
+        controls_frame.pack(anchor="center")
+        
+        # Кнопка "Добавить камеру"
+        self.add_camera_button = Button(
+            controls_frame,
+            text="Добавить камеру",
+            font=Font(family="Arial", size=11),
+            command=self.add_camera,
+            width=20
+        )
+        self.add_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Кнопка "Reload"
+        self.reload_button = Button(
+            controls_frame,
+            text="Перезагрузить камеры",
+            font=Font(family="Arial", size=11),
+            command=self.reload_drivers,
+            width=20
+        )
+        self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Комбобокс для выбора сетки
+        self.grid_combobox = ttk.Combobox(
+            controls_frame,
+            values=["Сетка 2х2", "Сетка 3х3"],
+            font=Font(family="Arial", size=11),
+            style="Custom.TCombobox",
+            state="readonly",
+            width=20
+        )
+        self.grid_combobox.set("Сетка 3х3")
+        self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Комбобокс для выбора интервала кадров
+        self.frame_rate_combobox = ttk.Combobox(
+            controls_frame,
+            values=["Кадр в 1 сек", "Кадр в 2 сек", "Кадр в 4 сек"],
+            font=Font(family="Arial", size=11),
+            style="Custom.TCombobox",
+            state="readonly",
+            width=20
+        )
+        self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
+        self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Кнопка "Открыть карту"
+        self.open_map_button = Button(
+            controls_frame,
+            text="Открыть карту",
+            font=Font(family="Arial", size=11),
+            command=lambda: None,
+            width=20
+        )
+        self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Сетка камер
+        camera_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
+        camera_frame.pack(expand=True, fill=tk.BOTH)
         
         self.cells = []
         for i in range(3):
             for j in range(3):
-                cell = CellFrame(right_frame, i * 3 + j)
+                cell = CellFrame(camera_frame, i * 3 + j)
                 cell.grid(row=i, column=j, sticky="nsew")
                 cell.config(width=self.cell_width, height=self.cell_height)
                 self.cells.append(cell)
-                right_frame.rowconfigure(i, weight=1)
-                right_frame.columnconfigure(j, weight=1)
+                camera_frame.rowconfigure(i, weight=1)
+                camera_frame.columnconfigure(j, weight=1)
         
         # Инициализация ячеек
         current_group = next((g for g in self.groups if g.get("current", False)), self.groups[0] if self.groups else {})
