@@ -89,7 +89,7 @@ class MainApp(tk.Tk):
         self.cell_width = (screen_width - 300) // 3
         self.cell_height = screen_height // 3
         
-        # Кэширование масштабированных изображений
+        # Кэширование масштабированных изображений для ячеек
         nocam_img = Image.open("resource/nocam.png")
         nocam_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.nocam_photo = ImageTk.PhotoImage(nocam_img)
@@ -97,6 +97,15 @@ class MainApp(tk.Tk):
         noconnect_img = Image.open("resource/noconnect.png")
         noconnect_img = noconnect_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
+        
+        # Кэширование изображений для дерева
+        checked_img = Image.open("resource/ui-check-box.png")
+        checked_img = checked_img.resize((16, 16), Image.LANCZOS)  # Масштабируем до стандартного размера иконки
+        self.checked_photo = ImageTk.PhotoImage(checked_img)
+        
+        unchecked_img = Image.open("resource/ui-check-box-uncheck.png")
+        unchecked_img = unchecked_img.resize((16, 16), Image.LANCZOS)
+        self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
         
         # Загрузка конфигурации
         try:
@@ -209,18 +218,28 @@ class MainApp(tk.Tk):
                 logger.error(error_msg)
                 messagebox.showerror("Ошибка загрузки", error_msg)
 
+    def expand_tree(self):
+        for item in self.tree.get_children():
+            self.tree.item(item, open=True)
+
     def update_camera_list(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         for group in self.groups:
             group_name = group.get("name", "Группа")
-            group_iid = self.tree.insert("", "end", text=group_name + (" [X]" if group.get("current", False) else ""))
+            group_iid = self.tree.insert(
+                "", 
+                "end", 
+                text=group_name, 
+                image=self.checked_photo if group.get("current", False) else self.unchecked_photo
+            )
             for link in group.get("grid", []):
                 if link:
                     cam = next((c for c in self.cams if c["link"] == link), None)
                     if cam:
                         self.tree.insert(group_iid, "end", text=cam["street"])
+        self.expand_tree()
 
     def on_tree_select(self, event):
         selection = self.tree.selection()
@@ -228,7 +247,7 @@ class MainApp(tk.Tk):
             item = selection[0]
             parent = self.tree.parent(item)
             if parent == "":  # Это группа
-                group_name = self.tree.item(item)["text"].split(" [")[0]
+                group_name = self.tree.item(item)["text"]
                 if messagebox.askyesno("Подтверждение", f"Хотите переключить вывод на '{group_name}'?"):
                     for group in self.groups:
                         if group.get("name") == group_name:
