@@ -100,11 +100,11 @@ class MainApp(tk.Tk):
         
         # Кэширование изображений для дерева
         checked_img = Image.open("resource/ui-check-box.png")
-        checked_img = checked_img.resize((16, 16), Image.LANCZOS)
+        checked_img = checked_img.resize((24, 24), Image.LANCZOS)
         self.checked_photo = ImageTk.PhotoImage(checked_img)
         
         unchecked_img = Image.open("resource/ui-check-box-uncheck.png")
-        unchecked_img = unchecked_img.resize((16, 16), Image.LANCZOS)
+        unchecked_img = unchecked_img.resize((24, 24), Image.LANCZOS)
         self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
         
         # Загрузка конфигурации

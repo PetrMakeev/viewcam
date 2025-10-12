@@ -1,3 +1,5 @@
 /chromedriver.exe
 /app.log
 /.wdm
+
+venv
