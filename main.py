@@ -70,13 +70,11 @@ class CellFrame(tk.Frame):
     def update_display(self):
         if not self.cam:
             self.name_label.config(text="")
-            img = Image.open("resource/nocam.png")
-            self.photo = ImageTk.PhotoImage(img)
+            self.photo = self.winfo_toplevel().nocam_photo
             self.image_label.config(image=self.photo)
         else:
             self.name_label.config(text=self.cam["street"])
-            img = Image.open("resource/noconnect.png")
-            self.photo = ImageTk.PhotoImage(img)
+            self.photo = self.winfo_toplevel().noconnect_photo
             self.image_label.config(image=self.photo)
 
 class MainApp(tk.Tk):
@@ -86,6 +84,19 @@ class MainApp(tk.Tk):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight() - 50
         self.geometry(f"{screen_width}x{screen_height}+0+0")
+        
+        # Сохраняем размеры ячеек
+        self.cell_width = (screen_width - 300) // 3
+        self.cell_height = screen_height // 3
+        
+        # Кэширование масштабированных изображений
+        nocam_img = Image.open("resource/nocam.png")
+        nocam_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+        self.nocam_photo = ImageTk.PhotoImage(nocam_img)
+        
+        noconnect_img = Image.open("resource/noconnect.png")
+        noconnect_img = noconnect_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+        self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
         
         # Загрузка конфигурации
         try:
@@ -118,14 +129,12 @@ class MainApp(tk.Tk):
         right_frame = tk.Frame(self)
         right_frame.pack(expand=True, fill=tk.BOTH)
         
-        cell_width = (screen_width - 300) // 3
-        cell_height = screen_height // 3
         self.cells = []
         for i in range(3):
             for j in range(3):
                 cell = CellFrame(right_frame, i * 3 + j)
                 cell.grid(row=i, column=j, sticky="nsew")
-                cell.config(width=cell_width, height=cell_height)
+                cell.config(width=self.cell_width, height=self.cell_height)
                 self.cells.append(cell)
                 right_frame.rowconfigure(i, weight=1)
                 right_frame.columnconfigure(j, weight=1)
@@ -140,6 +149,8 @@ class MainApp(tk.Tk):
                     if cam["link"] == link:
                         self.cells[i].cam = cam
                         break
+            else:
+                self.cells[i].cam = None
             self.cells[i].update_display()
         
         # Настройка опций для драйверов
@@ -202,29 +213,14 @@ class MainApp(tk.Tk):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        used_links = set()
-        for group in self.groups:
-            if group.get("name") != "Другие камеры":
-                for link in group.get("grid", []):
-                    if link:
-                        used_links.add(link)
-
-        other_cams = [cam for cam in self.cams if cam["link"] not in used_links]
-
         for group in self.groups:
             group_name = group.get("name", "Группа")
             group_iid = self.tree.insert("", "end", text=group_name + (" [X]" if group.get("current", False) else ""))
-            if group_name == "Другие камеры":
-                group_cams = other_cams
-            else:
-                group_cams = []
-                for link in group.get("grid", []):
-                    if link:
-                        cam = next((c for c in self.cams if c["link"] == link), None)
-                        if cam:
-                            group_cams.append(cam)
-            for cam in group_cams:
-                self.tree.insert(group_iid, "end", text=cam["street"])
+            for link in group.get("grid", []):
+                if link:
+                    cam = next((c for c in self.cams if c["link"] == link), None)
+                    if cam:
+                        self.tree.insert(group_iid, "end", text=cam["street"])
 
     def on_tree_select(self, event):
         selection = self.tree.selection()
@@ -251,6 +247,8 @@ class MainApp(tk.Tk):
                                 if cam["link"] == link:
                                     self.cells[i].cam = cam
                                     break
+                        else:
+                            self.cells[i].cam = None
                         self.cells[i].update_display()
                     self.save_config()
                     self.update_camera_list()
@@ -282,16 +280,19 @@ class MainApp(tk.Tk):
     def update_frames(self):
         for cell in self.cells:
             if not cell.cam or not self.drivers[cell.index]:
-                img = Image.open("resource/noconnect.png")
-                cell.photo = ImageTk.PhotoImage(img)
+                cell.photo = self.nocam_photo if not cell.cam else self.noconnect_photo
                 cell.image_label.config(image=cell.photo)
                 continue
             driver = self.drivers[cell.index]
             try:
                 if driver.current_url == 'about:blank':
+                    cell.photo = self.nocam_photo
+                    cell.image_label.config(image=cell.photo)
                     continue
             except Exception as e:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error checking url for cell {cell.index}: {str(e)}")
+                cell.photo = self.noconnect_photo
+                cell.image_label.config(image=cell.photo)
                 continue
             try:
                 element = WebDriverWait(driver, 5).until(
@@ -331,14 +332,14 @@ class MainApp(tk.Tk):
                             right = x + 1
                             break
                     cropped_image = pil_image.crop((left, 0, right, height))
+                    cropped_image = cropped_image.resize((self.cell_width, self.cell_height), Image.LANCZOS)
                     cell.photo = ImageTk.PhotoImage(cropped_image)
                     cell.image_label.config(image=cell.photo)
                 driver.switch_to.default_content()
             except Exception as e:
                 error_msg = f"[{time.strftime('%H:%M:%S')}] Error updating frame for cell {cell.index}: {str(e)}"
                 logger.error(error_msg)
-                img = Image.open("resource/noconnect.png")
-                cell.photo = ImageTk.PhotoImage(img)
+                cell.photo = self.noconnect_photo
                 cell.image_label.config(image=cell.photo)
         self.after(self.period, self.update_frames)
 
@@ -364,4 +365,3 @@ class MainApp(tk.Tk):
 if __name__ == "__main__":
     app = MainApp()
     app.mainloop()
-

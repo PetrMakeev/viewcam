@@ -99,7 +99,7 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-414",
         "http://maps.ufanet.ru/orenburg#1631079321GRR302"
       ],
-      "current": true
+      "current": false
     },
     {
       "name": "Группа 2",
@@ -129,7 +129,7 @@
         null,
         null
       ],
-      "current": false
+      "current": true
     }
   ],
   "period": 2
