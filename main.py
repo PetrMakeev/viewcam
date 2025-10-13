@@ -31,7 +31,7 @@ class CameraDialog(Toplevel):
         
         # Центрируем окно на экране
         window_width = 600
-        window_height = 200
+        window_height = 180  # Уменьшено с 200 до 180
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - window_width) // 2
