@@ -83,6 +83,18 @@
     {
       "street": "ул.Комсомольская -ул.1 мая",
       "link": "http://maps.ufanet.ru/orenburg#1680255908JDS994"
+    },
+    {
+      "street": "ул Уральская, д 2Д",
+      "link": "http://maps.ufanet.ru/orenburg#1695789012NAT241"
+    },
+    {
+      "street": "ул Геннадия Донковцева, д 3",
+      "link": "http://maps.ufanet.ru/orenburg#1712476123VTR83"
+    },
+    {
+      "street": "ул. Мира - ул. 10-я линия",
+      "link": "http://maps.ufanet.ru/orenburg#1689337810XAG400"
     }
   ],
   "groups": [
@@ -99,7 +111,7 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-414",
         "http://maps.ufanet.ru/orenburg#1631079321GRR302"
       ],
-      "current": true
+      "current": false
     },
     {
       "name": "Группа 2",
@@ -122,14 +134,14 @@
         "http://maps.ufanet.ru/orenburg#1590149334TKB486",
         "http://maps.ufanet.ru/orenburg#1551184185",
         "http://maps.ufanet.ru/orenburg#1680255908JDS994",
-        null,
-        null,
-        null,
+        "http://maps.ufanet.ru/orenburg#1695789012NAT241",
+        "http://maps.ufanet.ru/orenburg#1712476123VTR83",
+        "http://maps.ufanet.ru/orenburg#1689337810XAG400",
         null,
         null,
         null
       ],
-      "current": false
+      "current": true
     }
   ],
   "period": 2

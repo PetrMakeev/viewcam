@@ -25,29 +25,97 @@ class CameraDialog(Toplevel):
     def __init__(self, parent=None, street="", link="", title="Добавить камеру"):
         super().__init__(parent)
         self.title(title)
-        self.geometry("600x150")
+        # Устанавливаем модальность
+        self.transient(parent)
+        self.grab_set()
+        
+        # Центрируем окно на экране
+        window_width = 600
+        window_height = 200
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
         self.font = Font(family="Arial", size=11)
         
-        self.street_label = Label(self, text="Название:", font=self.font)
-        self.street_label.grid(row=0, column=0, padx=10, pady=10)
-        self.street_entry = Entry(self, font=self.font, width=50)
+        # Загружаем и масштабируем изображение для кнопок вставки
+        paste_img = Image.open("resource/paste.png")
+        paste_img = paste_img.resize((24, 24), Image.LANCZOS)
+        self.paste_photo = ImageTk.PhotoImage(paste_img)
+        
+        # Контейнер для элементов
+        self.main_frame = tk.Frame(self)
+        self.main_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+        
+        # Название
+        self.street_label = Label(self.main_frame, text="Название:", font=self.font)
+        self.street_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.street_entry = Entry(self.main_frame, font=self.font)
         self.street_entry.insert(0, street)
-        self.street_entry.grid(row=0, column=1, padx=10, pady=10)
+        self.street_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         
-        self.link_label = Label(self, text="Ссылка:", font=self.font)
-        self.link_label.grid(row=1, column=0, padx=10, pady=10)
-        self.link_entry = Entry(self, font=self.font, width=50)
+        # Кнопка вставки для названия
+        self.street_paste_button = Button(
+            self.main_frame,
+            image=self.paste_photo,
+            command=lambda: self.paste_text(self.street_entry)
+        )
+        self.street_paste_button.grid(row=0, column=2, padx=5, pady=5)
+        
+        # Ссылка
+        self.link_label = Label(self.main_frame, text="Ссылка:", font=self.font)
+        self.link_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        self.link_entry = Entry(self.main_frame, font=self.font)
         self.link_entry.insert(0, link)
-        self.link_entry.grid(row=1, column=1, padx=10, pady=10)
+        self.link_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         
-        self.ok_button = Button(self, text="OK", font=self.font, command=self.accept)
-        self.ok_button.grid(row=2, column=0, columnspan=2, pady=10)
+        # Кнопка вставки для ссылки
+        self.link_paste_button = Button(
+            self.main_frame,
+            image=self.paste_photo,
+            command=lambda: self.paste_text(self.link_entry)
+        )
+        self.link_paste_button.grid(row=1, column=2, padx=5, pady=5)
         
-        self.cancel_button = Button(self, text="Отмена", font=self.font, command=self.destroy)
-        self.cancel_button.grid(row=2, column=1, columnspan=2, pady=10)
+        # Настройка растяжки столбцов
+        self.main_frame.columnconfigure(1, weight=1)
+        
+        # Фрейм для кнопок Сохранить/Отмена
+        self.button_frame = tk.Frame(self.main_frame)
+        self.button_frame.grid(row=2, column=0, columnspan=3, pady=15)
+        
+        # Кнопка Сохранить
+        self.save_button = Button(
+            self.button_frame,
+            text="Сохранить",
+            font=self.font,
+            command=self.accept,
+            width=10
+        )
+        self.save_button.pack(side=tk.LEFT, padx=(0, 15))
+        
+        # Кнопка Отмена
+        self.cancel_button = Button(
+            self.button_frame,
+            text="Отмена",
+            font=self.font,
+            command=self.destroy,
+            width=10
+        )
+        self.cancel_button.pack(side=tk.LEFT)
         
         self.result = None
         self.protocol("WM_DELETE_WINDOW", self.destroy)
+
+    def paste_text(self, entry):
+        try:
+            text = self.clipboard_get()
+            entry.delete(0, tk.END)
+            entry.insert(0, text)
+        except Exception as e:
+            messagebox.showwarning("Ошибка", f"Не удалось вставить текст: {str(e)}")
 
     def accept(self):
         self.result = (self.street_entry.get(), self.link_entry.get())
@@ -348,14 +416,95 @@ class MainApp(tk.Tk):
             if any(cam["link"] == link for cam in self.cams):
                 messagebox.showwarning("Ошибка", "Камера с такой ссылкой уже существует")
                 return
-            self.cams.append({"street": street, "link": link})
-            self.save_config()
-            self.update_camera_list()
-            # Если влияет на текущую группу
+            # Добавляем камеру в список cams
+            new_cam = {"street": street, "link": link}
+            self.cams.append(new_cam)
+
+            # Находим текущую группу
             current_group = next((g for g in self.groups if g.get("current", False)), None)
-            current_grid = current_group.get("grid", [None] * 9) if current_group else []
-            if link in current_grid:
-                self.start_load_group_to_drivers()
+            added = False
+            added_group_name = None
+            is_current = False
+
+            if not self.groups:
+                # Если групп нет, создаем первую как текущую
+                new_group = {
+                    "name": "Группа 1",
+                    "grid": [link] + [None] * 8,
+                    "current": True
+                }
+                self.groups.append(new_group)
+                added = True
+                added_group_name = new_group["name"]
+                is_current = True
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group and added camera")
+            else:
+                # Проверяем текущую группу
+                if current_group:
+                    grid = current_group.get("grid", [None] * 9)
+                    if len(grid) < 9:
+                        grid += [None] * (9 - len(grid))  # Дополняем до 9
+                    try:
+                        free_index = grid.index(None)
+                        grid[free_index] = link
+                        current_group["grid"] = grid
+                        added = True
+                        added_group_name = current_group["name"]
+                        is_current = True
+                    except ValueError:
+                        pass  # Нет свободных
+
+                # Если не добавили в текущую, проверяем другие группы
+                if not added:
+                    for group in self.groups:
+                        if group == current_group:
+                            continue  # Пропускаем текущую
+                        grid = group.get("grid", [None] * 9)
+                        if len(grid) < 9:
+                            grid += [None] * (9 - len(grid))
+                        try:
+                            free_index = grid.index(None)
+                            grid[free_index] = link
+                            group["grid"] = grid
+                            added = True
+                            added_group_name = group["name"]
+                            break
+                        except ValueError:
+                            pass
+
+                # Если нигде нет места, создаем новую группу
+                if not added:
+                    new_group = {
+                        "name": f"Группа {len(self.groups) + 1}",
+                        "grid": [link] + [None] * 8,
+                        "current": False
+                    }
+                    self.groups.append(new_group)
+                    added = True
+                    added_group_name = new_group["name"]
+
+            if added:
+                # Обновляем ячейки, если добавили в текущую группу
+                if is_current:
+                    current_grid = current_group.get("grid", [None] * 9)
+                    for i in range(9):
+                        link_in_grid = current_grid[i] if i < len(current_grid) else None
+                        if link_in_grid == link:
+                            self.cells[i].cam = new_cam
+                            self.cells[i].update_display()
+                            break
+                    self.start_load_group_to_drivers()  # Загружаем новую камеру
+
+                # Сохраняем и обновляем дерево
+                self.save_config()
+                self.update_camera_list()
+
+                # Сообщаем пользователю, если не в текущую
+                if not is_current:
+                    messagebox.showinfo("Информация", f"Камера добавлена в группу '{added_group_name}'")
+            else:
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to add camera: no space found")
+                messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест")
 
     def reload_drivers(self):
         self.start_load_group_to_drivers()
