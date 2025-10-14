@@ -31,7 +31,7 @@ class CameraDialog(Toplevel):
         
         # Центрируем окно на экране
         window_width = 600
-        window_height = 160  # Уменьшено с 200 до 180
+        window_height = 160
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -189,7 +189,7 @@ class MainApp(tk.Tk):
         
         # Настройка стиля для комбобоксов
         style = ttk.Style()
-        style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))  # Устанавливаем одинаковые отступы для унификации высоты
+        style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))
         
         # Левая панель
         left_frame = tk.Frame(self, width=300)
@@ -221,6 +221,17 @@ class MainApp(tk.Tk):
             width=20
         )
         self.add_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
+        # Кнопка "Изменить камеру"
+        self.edit_camera_button = Button(
+            controls_frame,
+            text="Изменить камеру",
+            font=Font(family="Arial", size=11),
+            command=self.edit_camera,
+            width=20,
+            state=tk.DISABLED
+        )
+        self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
         # Кнопка "Reload"
         self.reload_button = Button(
@@ -375,11 +386,16 @@ class MainApp(tk.Tk):
 
     def on_tree_select(self, event):
         selection = self.tree.selection()
+        self.selected_camera = None
+        self.edit_camera_button.config(state=tk.DISABLED)
         if selection:
             item = selection[0]
             parent = self.tree.parent(item)
             if parent == "":  # Это группа
                 group_name = self.tree.item(item)["text"]
+                current_group = next((g for g in self.groups if g.get("current", False)), None)
+                if current_group and current_group.get("name") == group_name:
+                    return  # Не делаем ничего, если выбрана текущая группа
                 if messagebox.askyesno("Подтверждение", f"Хотите переключить вывод на '{group_name}'?"):
                     for group in self.groups:
                         if group.get("name") == group_name:
@@ -404,6 +420,11 @@ class MainApp(tk.Tk):
                     self.save_config()
                     self.update_camera_list()
                     self.start_load_group_to_drivers()
+            else:  # Это камера
+                cam_text = self.tree.item(item)["text"]
+                self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
+                if self.selected_camera:
+                    self.edit_camera_button.config(state=tk.NORMAL)
 
     def add_camera(self):
         dialog = CameraDialog(self)
@@ -443,7 +464,7 @@ class MainApp(tk.Tk):
                 if current_group:
                     grid = current_group.get("grid", [None] * 9)
                     if len(grid) < 9:
-                        grid += [None] * (9 - len(grid))  # Дополняем до 9
+                        grid += [None] * (9 - len(grid))
                     try:
                         free_index = grid.index(None)
                         grid[free_index] = link
@@ -458,7 +479,7 @@ class MainApp(tk.Tk):
                 if not added:
                     for group in self.groups:
                         if group == current_group:
-                            continue  # Пропускаем текущую
+                            continue
                         grid = group.get("grid", [None] * 9)
                         if len(grid) < 9:
                             grid += [None] * (9 - len(grid))
@@ -493,7 +514,7 @@ class MainApp(tk.Tk):
                             self.cells[i].cam = new_cam
                             self.cells[i].update_display()
                             break
-                    self.start_load_group_to_drivers()  # Загружаем новую камеру
+                    self.start_load_group_to_drivers()
 
                 # Сохраняем и обновляем дерево
                 self.save_config()
@@ -505,6 +526,52 @@ class MainApp(tk.Tk):
             else:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to add camera: no space found")
                 messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест")
+
+    def edit_camera(self):
+        if not self.selected_camera:
+            return
+        dialog = CameraDialog(self, street=self.selected_camera["street"], link=self.selected_camera["link"], title="Изменить камеру")
+        dialog.wait_window()
+        if dialog.result:
+            new_street, new_link = dialog.result
+            if new_street == self.selected_camera["street"] and new_link == self.selected_camera["link"]:
+                return  # Ничего не делаем, если данные не изменились
+            if not new_street or not new_link:
+                messagebox.showwarning("Ошибка", "Название и ссылка не могут быть пустыми")
+                return
+            if any(cam["link"] == new_link and cam != self.selected_camera for cam in self.cams):
+                messagebox.showwarning("Ошибка", "Камера с такой ссылкой уже существует")
+                return
+            old_link = self.selected_camera["link"]
+            self.selected_camera["street"] = new_street
+            self.selected_camera["link"] = new_link
+            # Обновляем ссылки во всех группах
+            for group in self.groups:
+                grid = group.get("grid", [])
+                for i in range(len(grid)):
+                    if grid[i] == old_link:
+                        grid[i] = new_link
+            # Сохраняем конфиг
+            self.save_config()
+            # Обновляем дерево
+            self.update_camera_list()
+            # Если в текущей группе, обновляем ячейку
+            current_group = next((g for g in self.groups if g.get("current", False)), None)
+            if current_group:
+                current_grid = current_group.get("grid", [None] * 9)
+                for i in range(9):
+                    if i < len(current_grid) and current_grid[i] == new_link:
+                        self.cells[i].cam = self.selected_camera
+                        self.cells[i].update_display()
+                        # Перезагружаем драйвер для этой ячейки
+                        driver = self.drivers[i]
+                        if driver:
+                            driver.get(new_link)
+                            driver.refresh()
+                            try:
+                                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ModalBodyPlayer")))
+                            except Exception as e:
+                                logger.error(f"[{time.strftime('%H:%M:%S')}] Error reloading driver for cell {i}: {str(e)}")
 
     def reload_drivers(self):
         self.start_load_group_to_drivers()
