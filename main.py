@@ -348,6 +348,9 @@ class MainApp(tk.Tk):
         # Проверка и добавление потерянных камер после инициализации драйверов
         self.check_and_add_lost_cameras()
         
+        # Дополнительная проверка и удаление несуществующих ссылок из групп
+        self.clean_groups_from_invalid_links()
+        
         self.start_load_group_to_drivers()
         
         self.update_frames()
@@ -447,6 +450,27 @@ class MainApp(tk.Tk):
         self.save_config()
         self.update_camera_list()
         logger.info(f"[{time.strftime('%H:%M:%S')}] Lost cameras added successfully.")
+
+    def clean_groups_from_invalid_links(self):
+        # Создаем set существующих ссылок из cams
+        existing_links = {cam["link"] for cam in self.cams}
+        
+        invalid_links_found = False
+        for group in self.groups:
+            grid = group.get("grid", [None] * 9)
+            # Фильтруем grid, оставляя только существующие ссылки и None
+            new_grid = [link if link in existing_links or link is None else None for link in grid]
+            if new_grid != grid:
+                invalid_links_found = True
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Removed invalid links from group '{group['name']}'")
+            group["grid"] = self.compact_grid(new_grid)
+        
+        if invalid_links_found:
+            self.save_config()
+            self.update_camera_list()
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Invalid links removed from groups and config saved.")
+        else:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] No invalid links found in groups.")
 
     def initialize_drivers(self):
         self.drivers = []
