@@ -190,10 +190,12 @@ class MainApp(tk.Tk):
         except FileNotFoundError:
             self.config = {"cams": [], "groups": [], "period": 1}
         self.period = self.config.get("period", 1) * 1000
+        self.original_period = self.period  # Сохраняем исходный период
         self.groups = self.config.get("groups", [])
         self.cams = self.config.get("cams", [])
         self.selected_camera = None
         self.drivers = []  # Список из 9 фиксированных драйверов
+        self.update_frames_id = None  # Для хранения ID таймера
         
         # Настройка стиля для комбобоксов
         style = ttk.Style()
@@ -268,7 +270,7 @@ class MainApp(tk.Tk):
             font=Font(family="Arial", size=11),
             style="Custom.TCombobox",
             state="readonly",
-            width=15  # Уменьшено с 20
+            width=15
         )
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
@@ -280,7 +282,7 @@ class MainApp(tk.Tk):
             font=Font(family="Arial", size=11),
             style="Custom.TCombobox",
             state="readonly",
-            width=15  # Уменьшено с 20
+            width=15
         )
         self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
         self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
@@ -291,7 +293,7 @@ class MainApp(tk.Tk):
             text="Открыть карту",
             font=Font(family="Arial", size=11),
             command=lambda: None,
-            width=25  # Увеличено с 20
+            width=25
         )
         self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -340,7 +342,6 @@ class MainApp(tk.Tk):
         
         # Таймер для обновления
         self.update_frames()
-        self.after(self.period, self.update_frames)
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -356,6 +357,13 @@ class MainApp(tk.Tk):
                 error_msg = f"[{time.strftime('%H:%M:%S')}] Error creating driver: {str(e)}"
                 logger.error(error_msg)
                 self.drivers.append(None)
+
+    def set_frame_rate(self, period_ms):
+        """Устанавливает частоту обновления кадров и перезапускает таймер."""
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
+        self.period = period_ms
+        self.update_frames_id = self.after(self.period, self.update_frames)
 
     def start_load_group_to_drivers(self):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
@@ -548,8 +556,14 @@ class MainApp(tk.Tk):
     def edit_camera(self):
         if not self.selected_camera:
             return
+        self.original_period = self.period
+        self.set_frame_rate(5000)  # Устанавливаем 5 секунд на время диалога
         dialog = CameraDialog(self, street=self.selected_camera["street"], link=self.selected_camera["link"], title="Изменить камеру")
         dialog.wait_window()
+        # Восстанавливаем частоту из комбобокса
+        selected_rate = self.frame_rate_combobox.get()
+        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
+        self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             new_street, new_link = dialog.result
             if new_street == self.selected_camera["street"] and new_link == self.selected_camera["link"]:
@@ -596,8 +610,14 @@ class MainApp(tk.Tk):
         if not current_group:
             messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
             return
+        self.original_period = self.period
+        self.set_frame_rate(5000)  # Устанавливаем 5 секунд на время диалога
         dialog = CameraDialog(self, street=current_group["name"], title="Изменить группу", is_group=True)
         dialog.wait_window()
+        # Восстанавливаем частоту из комбобокса
+        selected_rate = self.frame_rate_combobox.get()
+        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
+        self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             new_name, _ = dialog.result  # Игнорируем ссылку, так как она не используется
             if new_name == current_group["name"]:
@@ -679,7 +699,7 @@ class MainApp(tk.Tk):
                 logger.error(error_msg)
                 cell.photo = self.noconnect_photo
                 cell.image_label.config(image=cell.photo)
-        self.after(self.period, self.update_frames)
+        self.update_frames_id = self.after(self.period, self.update_frames)
 
     def save_config(self):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
@@ -691,6 +711,8 @@ class MainApp(tk.Tk):
             json.dump(self.config, f, ensure_ascii=False, indent=2)
 
     def on_close(self):
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
         for driver in self.drivers:
             if driver:
                 try:
