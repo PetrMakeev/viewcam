@@ -13,10 +13,6 @@
       "street": "Победы - Шевченко"
     },
     {
-      "link": "http://maps.ufanet.ru/orenburg#1715944809",
-      "street": "Рокоссовского разворот"
-    },
-    {
       "link": "http://maps.ufanet.ru/orenburg#001-999-8-424",
       "street": "Салмышская - Гаранькина"
     },
@@ -95,24 +91,13 @@
     {
       "street": "ул. Мира - ул. 10-я линия",
       "link": "http://maps.ufanet.ru/orenburg#1689337810XAG400"
+    },
+    {
+      "street": "Разворот в районе ул. Рокоссовского, 31",
+      "link": "Разворот в районе ул. Рокоссовского, 31"
     }
   ],
   "groups": [
-    {
-      "name": "Группа один",
-      "grid": [
-        "http://maps.ufanet.ru/orenburg#1498047275",
-        "http://maps.ufanet.ru/orenburg#1505721782",
-        "http://maps.ufanet.ru/orenburg#1505473975",
-        "http://maps.ufanet.ru/orenburg#1715944809",
-        "http://maps.ufanet.ru/orenburg#001-999-8-424",
-        "http://maps.ufanet.ru/orenburg#1689338108MFY826",
-        "http://maps.ufanet.ru/orenburg#001-999-8-389",
-        "http://maps.ufanet.ru/orenburg#001-999-8-414",
-        "http://maps.ufanet.ru/orenburg#1631079321GRR302"
-      ],
-      "current": true
-    },
     {
       "name": "Группа 2",
       "grid": [
@@ -129,6 +114,21 @@
       "current": false
     },
     {
+      "name": "Группа один",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1498047275",
+        "http://maps.ufanet.ru/orenburg#1505721782",
+        "http://maps.ufanet.ru/orenburg#1505473975",
+        null,
+        "http://maps.ufanet.ru/orenburg#001-999-8-424",
+        "http://maps.ufanet.ru/orenburg#1689338108MFY826",
+        "http://maps.ufanet.ru/orenburg#001-999-8-389",
+        "http://maps.ufanet.ru/orenburg#001-999-8-414",
+        "http://maps.ufanet.ru/orenburg#1631079321GRR302"
+      ],
+      "current": true
+    },
+    {
       "name": "Другие камеры",
       "grid": [
         "http://maps.ufanet.ru/orenburg#1590149334TKB486",
@@ -137,7 +137,7 @@
         "http://maps.ufanet.ru/orenburg#1695789012NAT241",
         "http://maps.ufanet.ru/orenburg#1712476123VTR83",
         "http://maps.ufanet.ru/orenburg#1689337810XAG400",
-        null,
+        "Разворот в районе ул. Рокоссовского, 31",
         null,
         null
       ],

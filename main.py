@@ -183,6 +183,15 @@ class MainApp(tk.Tk):
         unchecked_img = unchecked_img.resize((24, 24), Image.LANCZOS)
         self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
         
+        # Загрузка изображений для кнопок со стрелками
+        arrow_up_img = Image.open("resource/arrow-up.png")
+        arrow_up_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
+        self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
+        
+        arrow_down_img = Image.open("resource/arrow-down.png")
+        arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
+        self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
+        
         # Загрузка конфигурации
         try:
             with open("config.json", "r", encoding="utf-8") as f:
@@ -196,6 +205,7 @@ class MainApp(tk.Tk):
         self.selected_camera = None
         self.drivers = []  # Список из 9 фиксированных драйверов
         self.update_frames_id = None  # Для хранения ID таймера
+        self.is_editing_structure = False  # Флаг состояния редактирования структуры
         
         # Настройка стиля для комбобоксов
         style = ttk.Style()
@@ -210,16 +220,49 @@ class MainApp(tk.Tk):
         self.update_camera_list()
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         
+        # Фрейм для кнопок под деревом
+        self.tree_buttons_frame = tk.Frame(left_frame)
+        self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3)
+        self.tree_buttons_frame.pack_forget()  # Скрываем изначально
+        
+        # Кнопка со стрелкой вверх
+        self.arrow_up_button = Button(
+            self.tree_buttons_frame,
+            image=self.arrow_up_photo,
+            command=self.move_group_up,
+            state=tk.DISABLED
+        )
+        self.arrow_up_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        
+        # Кнопка со стрелкой вниз
+        self.arrow_down_button = Button(
+            self.tree_buttons_frame,
+            image=self.arrow_down_photo,
+            command=self.move_group_down,
+            state=tk.DISABLED
+        )
+        self.arrow_down_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+        
+        # Кнопка "Изменить структуру"
+        self.edit_structure_button = Button(
+            left_frame,
+            text="Изменить\nструктуру",
+            font=Font(family="Arial", size=11),
+            command=self.toggle_structure_edit,
+            width=20
+        )
+        self.edit_structure_button.pack(fill=tk.X, padx=3, pady=3)
+        
         # Правая часть: верхний фрейм с элементами управления и сетка камер
         right_frame = tk.Frame(self)
         right_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         
         # Верхний фрейм для кнопок и комбобоксов
-        top_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
-        top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+        self.top_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
+        self.top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         
         # Внутренний фрейм для центрирования элементов
-        controls_frame = tk.Frame(top_frame)
+        controls_frame = tk.Frame(self.top_frame)
         controls_frame.pack(anchor="center")
         
         # Кнопка "Добавить камеру"
@@ -410,14 +453,76 @@ class MainApp(tk.Tk):
                         self.tree.insert(group_iid, "end", text=cam["street"])
         self.expand_tree()
 
+    def move_group_up(self):
+        """Перемещает выбранную группу вверх в списке групп."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        item = selection[0]
+        parent = self.tree.parent(item)
+        if parent != "":  # Если выбрана не группа, а камера, ничего не делаем
+            return
+        
+        group_name = self.tree.item(item)["text"]
+        group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
+        if group_index <= 0:  # Нельзя переместить первую группу выше
+            return
+        
+        # Меняем местами группы
+        self.groups[group_index], self.groups[group_index - 1] = self.groups[group_index - 1], self.groups[group_index]
+        
+        # Сохраняем конфигурацию
+        self.save_config()
+        
+        # Обновляем дерево и сохраняем выбор
+        self.update_camera_list()
+        new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
+        self.tree.selection_set(new_iid)
+        self.tree.focus(new_iid)
+
+    def move_group_down(self):
+        """Перемещает выбранную группу вниз в списке групп."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        item = selection[0]
+        parent = self.tree.parent(item)
+        if parent != "":  # Если выбрана не группа, а камера, ничего не делаем
+            return
+        
+        group_name = self.tree.item(item)["text"]
+        group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
+        if group_index == -1 or group_index >= len(self.groups) - 1:  # Нельзя переместить последнюю группу ниже
+            return
+        
+        # Меняем местами группы
+        self.groups[group_index], self.groups[group_index + 1] = self.groups[group_index + 1], self.groups[group_index]
+        
+        # Сохраняем конфигурацию
+        self.save_config()
+        
+        # Обновляем дерево и сохраняем выбор
+        self.update_camera_list()
+        new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
+        self.tree.selection_set(new_iid)
+        self.tree.focus(new_iid)
+
     def on_tree_select(self, event):
         selection = self.tree.selection()
         self.selected_camera = None
         self.edit_camera_button.config(state=tk.DISABLED)
+        if self.is_editing_structure:
+            # Управляем состоянием кнопок со стрелками
+            if selection:
+                self.arrow_up_button.config(state=tk.NORMAL)
+                self.arrow_down_button.config(state=tk.NORMAL)
+            else:
+                self.arrow_up_button.config(state=tk.DISABLED)
+                self.arrow_down_button.config(state=tk.DISABLED)
         if selection:
             item = selection[0]
             parent = self.tree.parent(item)
-            if parent == "":  # Это группа
+            if parent == "" and not self.is_editing_structure:  # Это группа, и не в режиме редактирования
                 group_name = self.tree.item(item)["text"]
                 current_group = next((g for g in self.groups if g.get("current", False)), None)
                 if current_group and current_group.get("name") == group_name:
@@ -447,10 +552,52 @@ class MainApp(tk.Tk):
                     self.update_camera_list()
                     self.start_load_group_to_drivers()
             else:  # Это камера
-                cam_text = self.tree.item(item)["text"]
-                self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
-                if self.selected_camera:
-                    self.edit_camera_button.config(state=tk.NORMAL)
+                if not self.is_editing_structure:  # Проверяем, не в режиме редактирования структуры
+                    cam_text = self.tree.item(item)["text"]
+                    self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
+                    if self.selected_camera:
+                        self.edit_camera_button.config(state=tk.NORMAL)
+
+    def toggle_structure_edit(self):
+        """Переключает режим редактирования структуры."""
+        if not self.is_editing_structure:
+            # Входим в режим редактирования
+            self.is_editing_structure = True
+            self.edit_structure_button.config(text="Сохранить\nизменения")
+            # Отключаем верхний фрейм
+            for widget in self.top_frame.winfo_children():
+                for child in widget.winfo_children():
+                    child.configure(state='disabled')
+            # Отключаем обновление кадров
+            if self.update_frames_id:
+                self.after_cancel(self.update_frames_id)
+                self.update_frames_id = None
+            # Показываем фрейм с кнопками со стрелками перед кнопкой "Изменить структуру"
+            self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3, before=self.edit_structure_button)
+            # Устанавливаем состояние кнопок в зависимости от выбора в дереве
+            if self.tree.selection():
+                self.arrow_up_button.config(state=tk.NORMAL)
+                self.arrow_down_button.config(state=tk.NORMAL)
+            else:
+                self.arrow_up_button.config(state=tk.DISABLED)
+                self.arrow_down_button.config(state=tk.DISABLED)
+        else:
+            # Выходим из режима редактирования
+            self.is_editing_structure = False
+            self.edit_structure_button.config(text="Изменить\nструктуру")
+            # Включаем верхний фрейм
+            for widget in self.top_frame.winfo_children():
+                for child in widget.winfo_children():
+                    child.configure(state='normal')
+            # Скрываем фрейм с кнопками со стрелками
+            self.tree_buttons_frame.pack_forget()
+            # Деактивируем кнопки со стрелками
+            self.arrow_up_button.config(state=tk.DISABLED)
+            self.arrow_down_button.config(state=tk.DISABLED)
+            # Восстанавливаем обновление кадров
+            selected_rate = self.frame_rate_combobox.get()
+            period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
+            self.set_frame_rate(period_map.get(selected_rate, 1000))
 
     def add_camera(self):
         dialog = CameraDialog(self)
