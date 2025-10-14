@@ -22,7 +22,7 @@ logging.basicConfig(filename='app.log', level=logging.ERROR, force=True)
 logger = logging.getLogger(__name__)
 
 class CameraDialog(Toplevel):
-    def __init__(self, parent=None, street="", link="", title="Добавить камеру"):
+    def __init__(self, parent=None, street="", link="", title="Добавить камеру", is_group=False):
         super().__init__(parent)
         self.title(title)
         # Устанавливаем модальность
@@ -31,7 +31,7 @@ class CameraDialog(Toplevel):
         
         # Центрируем окно на экране
         window_width = 600
-        window_height = 160
+        window_height = 160 if not is_group else 120  # Меньше высота для группы
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -56,15 +56,17 @@ class CameraDialog(Toplevel):
         self.street_entry.insert(0, street)
         self.street_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         
-        # Кнопка вставки для названия
+        # Кнопка вставки для названия (скрывается для группы)
         self.street_paste_button = Button(
             self.main_frame,
             image=self.paste_photo,
             command=lambda: self.paste_text(self.street_entry)
         )
         self.street_paste_button.grid(row=0, column=2, padx=5, pady=5)
+        if is_group:
+            self.street_paste_button.grid_remove()
         
-        # Ссылка
+        # Ссылка (скрывается для группы)
         self.link_label = Label(self.main_frame, text="Ссылка:", font=self.font)
         self.link_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
         self.link_entry = Entry(self.main_frame, font=self.font)
@@ -79,12 +81,18 @@ class CameraDialog(Toplevel):
         )
         self.link_paste_button.grid(row=1, column=2, padx=5, pady=5)
         
+        # Скрываем элементы ссылки, если редактируем группу
+        if is_group:
+            self.link_label.grid_remove()
+            self.link_entry.grid_remove()
+            self.link_paste_button.grid_remove()
+        
         # Настройка растяжки столбцов
         self.main_frame.columnconfigure(1, weight=1)
         
         # Фрейм для кнопок Сохранить/Отмена
         self.button_frame = tk.Frame(self.main_frame)
-        self.button_frame.grid(row=2, column=0, columnspan=3, pady=15)
+        self.button_frame.grid(row=2 if not is_group else 1, column=0, columnspan=3, pady=15)
         
         # Кнопка Сохранить
         self.save_button = Button(
@@ -233,6 +241,16 @@ class MainApp(tk.Tk):
         )
         self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
+        # Кнопка "Изменить группу"
+        self.edit_group_button = Button(
+            controls_frame,
+            text="Изменить группу",
+            font=Font(family="Arial", size=11),
+            command=self.edit_group,
+            width=20
+        )
+        self.edit_group_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
         # Кнопка "Reload"
         self.reload_button = Button(
             controls_frame,
@@ -250,7 +268,7 @@ class MainApp(tk.Tk):
             font=Font(family="Arial", size=11),
             style="Custom.TCombobox",
             state="readonly",
-            width=20
+            width=15  # Уменьшено с 20
         )
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
@@ -262,7 +280,7 @@ class MainApp(tk.Tk):
             font=Font(family="Arial", size=11),
             style="Custom.TCombobox",
             state="readonly",
-            width=20
+            width=15  # Уменьшено с 20
         )
         self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
         self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
@@ -273,7 +291,7 @@ class MainApp(tk.Tk):
             text="Открыть карту",
             font=Font(family="Arial", size=11),
             command=lambda: None,
-            width=20
+            width=25  # Увеличено с 20
         )
         self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -572,6 +590,27 @@ class MainApp(tk.Tk):
                                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ModalBodyPlayer")))
                             except Exception as e:
                                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error reloading driver for cell {i}: {str(e)}")
+
+    def edit_group(self):
+        current_group = next((g for g in self.groups if g.get("current", False)), None)
+        if not current_group:
+            messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
+            return
+        dialog = CameraDialog(self, street=current_group["name"], title="Изменить группу", is_group=True)
+        dialog.wait_window()
+        if dialog.result:
+            new_name, _ = dialog.result  # Игнорируем ссылку, так как она не используется
+            if new_name == current_group["name"]:
+                return  # Ничего не делаем, если имя не изменилось
+            if not new_name:
+                messagebox.showwarning("Ошибка", "Название группы не может быть пустым")
+                return
+            if any(group["name"] == new_name for group in self.groups if group != current_group):
+                messagebox.showwarning("Ошибка", "Группа с таким названием уже существует")
+                return
+            current_group["name"] = new_name
+            self.save_config()
+            self.update_camera_list()
 
     def reload_drivers(self):
         self.start_load_group_to_drivers()
