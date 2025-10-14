@@ -201,6 +201,9 @@ class MainApp(tk.Tk):
         self.period = self.config.get("period", 1) * 1000
         self.original_period = self.period  # Сохраняем исходный период
         self.groups = self.config.get("groups", [])
+        # Уплотняем grid при загрузке
+        for group in self.groups:
+            group["grid"] = self.compact_grid(group.get("grid", [None] * 9))
         self.cams = self.config.get("cams", [])
         self.selected_camera = None
         self.drivers = []  # Список из 9 фиксированных драйверов
@@ -299,10 +302,10 @@ class MainApp(tk.Tk):
         # Кнопка "Reload"
         self.reload_button = Button(
             controls_frame,
-            text="Перезагрузить камеры",
+            text="Перезагрузить",  # Сокращено
             font=Font(family="Arial", size=11),
             command=self.reload_drivers,
-            width=20
+            width=20  # Можно уменьшить до 15 для оптимального вида: width=15
         )
         self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -387,6 +390,11 @@ class MainApp(tk.Tk):
         self.update_frames()
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def compact_grid(self, grid):
+        """Уплотняет grid: не-None в начало, None в конец, длина = 9."""
+        non_none = [x for x in grid if x is not None]
+        return non_none + [None] * (9 - len(non_none))
 
     def initialize_drivers(self):
         self.drivers = []
@@ -614,71 +622,65 @@ class MainApp(tk.Tk):
             new_cam = {"street": street, "link": link}
             self.cams.append(new_cam)
 
-            # Находим текущую группу
-            current_group = next((g for g in self.groups if g.get("current", False)), None)
             added = False
             added_group_name = None
             is_current = False
 
+            current_group = next((g for g in self.groups if g.get("current", False)), None)
+
             if not self.groups:
                 # Если групп нет, создаем первую как текущую
+                new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
                 new_group = {
-                    "name": "Группа 1",
+                    "name": new_group_name,
                     "grid": [link] + [None] * 8,
                     "current": True
                 }
                 self.groups.append(new_group)
                 added = True
-                added_group_name = new_group["name"]
+                added_group_name = new_group_name
                 is_current = True
-                logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group and added camera")
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group '{new_group_name}' and added camera")
             else:
-                # Проверяем текущую группу
+                # Сначала проверяем текущую группу
                 if current_group:
                     grid = current_group.get("grid", [None] * 9)
-                    if len(grid) < 9:
-                        grid += [None] * (9 - len(grid))
-                    try:
+                    if None in grid:
                         free_index = grid.index(None)
                         grid[free_index] = link
-                        current_group["grid"] = grid
+                        current_group["grid"] = self.compact_grid(grid)  # Уплотняем после добавления
                         added = True
                         added_group_name = current_group["name"]
                         is_current = True
-                    except ValueError:
-                        pass  # Нет свободных
 
-                # Если не добавили в текущую, проверяем другие группы
+                # Если не добавили, проверяем другие группы
                 if not added:
                     for group in self.groups:
                         if group == current_group:
                             continue
                         grid = group.get("grid", [None] * 9)
-                        if len(grid) < 9:
-                            grid += [None] * (9 - len(grid))
-                        try:
+                        if None in grid:
                             free_index = grid.index(None)
                             grid[free_index] = link
-                            group["grid"] = grid
+                            group["grid"] = self.compact_grid(grid)  # Уплотняем после добавления
                             added = True
                             added_group_name = group["name"]
                             break
-                        except ValueError:
-                            pass
 
                 # Если нигде нет места, создаем новую группу
                 if not added:
+                    new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
                     new_group = {
-                        "name": f"Группа {len(self.groups) + 1}",
+                        "name": new_group_name,
                         "grid": [link] + [None] * 8,
                         "current": False
                     }
                     self.groups.append(new_group)
                     added = True
-                    added_group_name = new_group["name"]
+                    added_group_name = new_group_name
 
             if added:
-                # Обновляем ячейки, если добавили в текущую группу
+                # Обновляем ячейки и драйверы, если добавили в текущую группу
                 if is_current:
                     current_grid = current_group.get("grid", [None] * 9)
                     for i in range(9):
@@ -693,9 +695,19 @@ class MainApp(tk.Tk):
                 self.save_config()
                 self.update_camera_list()
 
-                # Сообщаем пользователю, если не в текущую
+                # Сообщаем пользователю
+                message = f"Камера добавлена в группу '{added_group_name}'"
                 if not is_current:
-                    messagebox.showinfo("Информация", f"Камера добавлена в группу '{added_group_name}'")
+                    message += ". Хотите переключиться на эту группу?"
+                    if messagebox.askyesno("Информация", message):
+                        # Переключаем на новую группу (опционально)
+                        for group in self.groups:
+                            group["current"] = (group["name"] == added_group_name)
+                        self.save_config()
+                        self.update_camera_list()
+                        self.start_load_group_to_drivers()
+                else:
+                    messagebox.showinfo("Информация", message)
             else:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to add camera: no space found")
                 messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест")
@@ -730,6 +742,7 @@ class MainApp(tk.Tk):
                 for i in range(len(grid)):
                     if grid[i] == old_link:
                         grid[i] = new_link
+                group["grid"] = self.compact_grid(grid)  # Уплотняем после изменения
             # Сохраняем конфиг
             self.save_config()
             # Обновляем дерево
@@ -852,10 +865,27 @@ class MainApp(tk.Tk):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
         if current_group:
             current_group["grid"] = [cell.cam["link"] if cell.cam else None for cell in self.cells]
+        # Уплотняем все grid перед сохранением
+        for group in self.groups:
+            group["grid"] = self.compact_grid(group.get("grid", [None] * 9))
         self.config["groups"] = self.groups
         self.config["cams"] = self.cams
         with open("config.json", "w", encoding="utf-8") as f:
             json.dump(self.config, f, ensure_ascii=False, indent=2)
+        # Если изменился layout текущей группы, обновляем ячейки и драйверы
+        if current_group:
+            current_grid = current_group.get("grid", [None] * 9)
+            for i in range(9):
+                link = current_grid[i] if i < len(current_grid) else None
+                if link:
+                    for cam in self.cams:
+                        if cam["link"] == link:
+                            self.cells[i].cam = cam
+                            break
+                else:
+                    self.cells[i].cam = None
+                self.cells[i].update_display()
+            self.start_load_group_to_drivers()
 
     def on_close(self):
         if self.update_frames_id:
