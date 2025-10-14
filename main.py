@@ -25,13 +25,11 @@ class CameraDialog(Toplevel):
     def __init__(self, parent=None, street="", link="", title="Добавить камеру", is_group=False):
         super().__init__(parent)
         self.title(title)
-        # Устанавливаем модальность
         self.transient(parent)
         self.grab_set()
         
-        # Центрируем окно на экране
         window_width = 600
-        window_height = 160 if not is_group else 120  # Меньше высота для группы
+        window_height = 160 if not is_group else 120
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -40,23 +38,19 @@ class CameraDialog(Toplevel):
         
         self.font = Font(family="Arial", size=11)
         
-        # Загружаем и масштабируем изображение для кнопок вставки
         paste_img = Image.open("resource/paste.png")
         paste_img = paste_img.resize((24, 24), Image.LANCZOS)
         self.paste_photo = ImageTk.PhotoImage(paste_img)
         
-        # Контейнер для элементов
         self.main_frame = tk.Frame(self)
         self.main_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
         
-        # Название
         self.street_label = Label(self.main_frame, text="Название:", font=self.font)
         self.street_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.street_entry = Entry(self.main_frame, font=self.font)
         self.street_entry.insert(0, street)
         self.street_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         
-        # Кнопка вставки для названия (скрывается для группы)
         self.street_paste_button = Button(
             self.main_frame,
             image=self.paste_photo,
@@ -66,14 +60,12 @@ class CameraDialog(Toplevel):
         if is_group:
             self.street_paste_button.grid_remove()
         
-        # Ссылка (скрывается для группы)
         self.link_label = Label(self.main_frame, text="Ссылка:", font=self.font)
         self.link_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
         self.link_entry = Entry(self.main_frame, font=self.font)
         self.link_entry.insert(0, link)
         self.link_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         
-        # Кнопка вставки для ссылки
         self.link_paste_button = Button(
             self.main_frame,
             image=self.paste_photo,
@@ -81,20 +73,16 @@ class CameraDialog(Toplevel):
         )
         self.link_paste_button.grid(row=1, column=2, padx=5, pady=5)
         
-        # Скрываем элементы ссылки, если редактируем группу
         if is_group:
             self.link_label.grid_remove()
             self.link_entry.grid_remove()
             self.link_paste_button.grid_remove()
         
-        # Настройка растяжки столбцов
         self.main_frame.columnconfigure(1, weight=1)
         
-        # Фрейм для кнопок Сохранить/Отмена
         self.button_frame = tk.Frame(self.main_frame)
         self.button_frame.grid(row=2 if not is_group else 1, column=0, columnspan=3, pady=15)
         
-        # Кнопка Сохранить
         self.save_button = Button(
             self.button_frame,
             text="Сохранить",
@@ -104,7 +92,6 @@ class CameraDialog(Toplevel):
         )
         self.save_button.pack(side=tk.LEFT, padx=(0, 15))
         
-        # Кнопка Отмена
         self.cancel_button = Button(
             self.button_frame,
             text="Отмена",
@@ -161,11 +148,9 @@ class MainApp(tk.Tk):
         screen_height = self.winfo_screenheight() - 50
         self.geometry(f"{screen_width - 10}x{screen_height - 15}+0+0")
         
-        # Сохраняем размеры ячеек
         self.cell_width = (screen_width - 10 - 300) // 3
         self.cell_height = (screen_height - 15) // 3
         
-        # Кэширование масштабированных изображений для ячеек
         nocam_img = Image.open("resource/nocam.png")
         nocam_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.nocam_photo = ImageTk.PhotoImage(nocam_img)
@@ -174,7 +159,6 @@ class MainApp(tk.Tk):
         noconnect_img = noconnect_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
         
-        # Кэширование изображений для дерева
         checked_img = Image.open("resource/ui-check-box.png")
         checked_img = checked_img.resize((24, 24), Image.LANCZOS)
         self.checked_photo = ImageTk.PhotoImage(checked_img)
@@ -183,7 +167,6 @@ class MainApp(tk.Tk):
         unchecked_img = unchecked_img.resize((24, 24), Image.LANCZOS)
         self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
         
-        # Загрузка изображений для кнопок со стрелками
         arrow_up_img = Image.open("resource/arrow-up.png")
         arrow_up_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
         self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
@@ -192,29 +175,25 @@ class MainApp(tk.Tk):
         arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
         self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
         
-        # Загрузка конфигурации
         try:
             with open("config.json", "r", encoding="utf-8") as f:
                 self.config = json.load(f)
         except FileNotFoundError:
             self.config = {"cams": [], "groups": [], "period": 1}
         self.period = self.config.get("period", 1) * 1000
-        self.original_period = self.period  # Сохраняем исходный период
+        self.original_period = self.period
         self.groups = self.config.get("groups", [])
-        # Уплотняем grid при загрузке
         for group in self.groups:
             group["grid"] = self.compact_grid(group.get("grid", [None] * 9))
         self.cams = self.config.get("cams", [])
         self.selected_camera = None
-        self.drivers = []  # Список из 9 фиксированных драйверов
-        self.update_frames_id = None  # Для хранения ID таймера
-        self.is_editing_structure = False  # Флаг состояния редактирования структуры
+        self.drivers = []
+        self.update_frames_id = None
+        self.is_editing_structure = False
         
-        # Настройка стиля для комбобоксов
         style = ttk.Style()
         style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))
         
-        # Левая панель
         left_frame = tk.Frame(self, width=300)
         left_frame.pack(side=tk.LEFT, fill=tk.Y)
         
@@ -223,12 +202,10 @@ class MainApp(tk.Tk):
         self.update_camera_list()
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         
-        # Фрейм для кнопок под деревом
         self.tree_buttons_frame = tk.Frame(left_frame)
         self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3)
-        self.tree_buttons_frame.pack_forget()  # Скрываем изначально
+        self.tree_buttons_frame.pack_forget()
         
-        # Кнопка со стрелкой вверх
         self.arrow_up_button = Button(
             self.tree_buttons_frame,
             image=self.arrow_up_photo,
@@ -237,7 +214,6 @@ class MainApp(tk.Tk):
         )
         self.arrow_up_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
         
-        # Кнопка со стрелкой вниз
         self.arrow_down_button = Button(
             self.tree_buttons_frame,
             image=self.arrow_down_photo,
@@ -246,7 +222,6 @@ class MainApp(tk.Tk):
         )
         self.arrow_down_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
         
-        # Кнопка "Изменить структуру"
         self.edit_structure_button = Button(
             left_frame,
             text="Изменить\nструктуру",
@@ -256,19 +231,15 @@ class MainApp(tk.Tk):
         )
         self.edit_structure_button.pack(fill=tk.X, padx=3, pady=3)
         
-        # Правая часть: верхний фрейм с элементами управления и сетка камер
         right_frame = tk.Frame(self)
         right_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         
-        # Верхний фрейм для кнопок и комбобоксов
         self.top_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
         self.top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         
-        # Внутренний фрейм для центрирования элементов
         controls_frame = tk.Frame(self.top_frame)
         controls_frame.pack(anchor="center")
         
-        # Кнопка "Добавить камеру"
         self.add_camera_button = Button(
             controls_frame,
             text="Добавить камеру",
@@ -278,7 +249,6 @@ class MainApp(tk.Tk):
         )
         self.add_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Кнопка "Изменить камеру"
         self.edit_camera_button = Button(
             controls_frame,
             text="Изменить камеру",
@@ -289,7 +259,6 @@ class MainApp(tk.Tk):
         )
         self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Кнопка "Изменить группу"
         self.edit_group_button = Button(
             controls_frame,
             text="Изменить группу",
@@ -299,17 +268,15 @@ class MainApp(tk.Tk):
         )
         self.edit_group_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Кнопка "Reload"
         self.reload_button = Button(
             controls_frame,
-            text="Перезагрузить",  # Сокращено
+            text="Перезагрузить",
             font=Font(family="Arial", size=11),
             command=self.reload_drivers,
-            width=20  # Можно уменьшить до 15 для оптимального вида: width=15
+            width=20
         )
         self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Комбобокс для выбора сетки
         self.grid_combobox = ttk.Combobox(
             controls_frame,
             values=["Сетка 2х2", "Сетка 3х3"],
@@ -321,7 +288,6 @@ class MainApp(tk.Tk):
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Комбобокс для выбора интервала кадров
         self.frame_rate_combobox = ttk.Combobox(
             controls_frame,
             values=["Кадр в 1 сек", "Кадр в 2 сек", "Кадр в 4 сек"],
@@ -333,7 +299,6 @@ class MainApp(tk.Tk):
         self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
         self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Кнопка "Открыть карту"
         self.open_map_button = Button(
             controls_frame,
             text="Открыть карту",
@@ -343,7 +308,6 @@ class MainApp(tk.Tk):
         )
         self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # Сетка камер
         camera_frame = tk.Frame(right_frame, relief="sunken", borderwidth=2)
         camera_frame.pack(expand=True, fill=tk.BOTH)
         
@@ -371,7 +335,6 @@ class MainApp(tk.Tk):
                 self.cells[i].cam = None
             self.cells[i].update_display()
         
-        # Настройка опций для драйверов
         self.driver_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chromedriver.exe")
         self.options = Options()
         self.options.add_argument('--headless=new')
@@ -380,21 +343,110 @@ class MainApp(tk.Tk):
         self.options.add_argument('--no-sandbox')
         self.options.add_argument('--disable-dev-shm-usage')
         
-        # Инициализация фиксированных драйверов
         self.initialize_drivers()
         
-        # Начальная загрузка группы
+        # Проверка и добавление потерянных камер после инициализации драйверов
+        self.check_and_add_lost_cameras()
+        
         self.start_load_group_to_drivers()
         
-        # Таймер для обновления
         self.update_frames()
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def compact_grid(self, grid):
-        """Уплотняет grid: не-None в начало, None в конец, длина = 9."""
         non_none = [x for x in grid if x is not None]
         return non_none + [None] * (9 - len(non_none))
+
+    def check_and_add_lost_cameras(self):
+        lost_cams = []
+        all_used_links = set()
+        for group in self.groups:
+            for link in group.get("grid", []):
+                if link:
+                    all_used_links.add(link)
+        
+        for cam in self.cams:
+            if cam["link"] not in all_used_links:
+                lost_cams.append(cam)
+        
+        if not lost_cams:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] No lost cameras found.")
+            return
+        
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Found {len(lost_cams)} lost cameras. Adding to groups.")
+        
+        for cam in lost_cams:
+            link = cam["link"]
+            added = False
+            added_group_name = None
+            is_current = False
+
+            current_group = next((g for g in self.groups if g.get("current", False)), None)
+
+            if not self.groups:
+                new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
+                new_group = {
+                    "name": new_group_name,
+                    "grid": [link] + [None] * 8,
+                    "current": True
+                }
+                self.groups.append(new_group)
+                added = True
+                added_group_name = new_group_name
+                is_current = True
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group '{new_group_name}' for lost camera: {cam['street']}")
+            else:
+                if current_group:
+                    grid = current_group.get("grid", [None] * 9)
+                    if None in grid:
+                        free_index = grid.index(None)
+                        grid[free_index] = link
+                        current_group["grid"] = self.compact_grid(grid)
+                        added = True
+                        added_group_name = current_group["name"]
+                        is_current = True
+                        logger.info(f"[{time.strftime('%H:%M:%S')}] Added lost camera '{cam['street']}' to current group '{added_group_name}'")
+
+                if not added:
+                    for group in self.groups:
+                        if group == current_group:
+                            continue
+                        grid = group.get("grid", [None] * 9)
+                        if None in grid:
+                            free_index = grid.index(None)
+                            grid[free_index] = link
+                            group["grid"] = self.compact_grid(grid)
+                            added = True
+                            added_group_name = group["name"]
+                            logger.info(f"[{time.strftime('%H:%M:%S')}] Added lost camera '{cam['street']}' to group '{added_group_name}'")
+                            break
+
+                if not added:
+                    new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
+                    new_group = {
+                        "name": new_group_name,
+                        "grid": [link] + [None] * 8,
+                        "current": False
+                    }
+                    self.groups.append(new_group)
+                    added = True
+                    added_group_name = new_group_name
+                    logger.info(f"[{time.strftime('%H:%M:%S')}] Created new group '{new_group_name}' for lost camera: {cam['street']}")
+
+            if added and is_current and current_group:
+                current_grid = current_group.get("grid", [None] * 9)
+                for i in range(9):
+                    link_in_grid = current_grid[i] if i < len(current_grid) else None
+                    if link_in_grid == link:
+                        self.cells[i].cam = cam
+                        self.cells[i].update_display()
+                        break
+                self.start_load_group_to_drivers()
+
+        self.save_config()
+        self.update_camera_list()
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Lost cameras added successfully.")
 
     def initialize_drivers(self):
         self.drivers = []
@@ -410,7 +462,6 @@ class MainApp(tk.Tk):
                 self.drivers.append(None)
 
     def set_frame_rate(self, period_ms):
-        """Устанавливает частоту обновления кадров и перезапускает таймер."""
         if self.update_frames_id:
             self.after_cancel(self.update_frames_id)
         self.period = period_ms
@@ -423,13 +474,15 @@ class MainApp(tk.Tk):
         current_grid = current_group.get("grid", [None] * 9)
         for i in range(9):
             try:
+                if not self.drivers or len(self.drivers) <= i:
+                    logger.warning(f"[{time.strftime('%H:%M:%S')}] Skipping load for cell {i}: drivers not initialized")
+                    continue
                 url = current_grid[i] if i < len(current_grid) else None
                 driver = self.drivers[i]
                 if driver:
                     if url:
                         driver.get(url)
                         driver.refresh()
-                        # Ждем загрузки элемента
                         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ModalBodyPlayer")))
                     else:
                         driver.get('about:blank')
@@ -445,7 +498,6 @@ class MainApp(tk.Tk):
     def update_camera_list(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
-
         for group in self.groups:
             group_name = group.get("name", "Группа")
             group_iid = self.tree.insert(
@@ -462,54 +514,38 @@ class MainApp(tk.Tk):
         self.expand_tree()
 
     def move_group_up(self):
-        """Перемещает выбранную группу вверх в списке групп."""
         selection = self.tree.selection()
         if not selection:
             return
         item = selection[0]
         parent = self.tree.parent(item)
-        if parent != "":  # Если выбрана не группа, а камера, ничего не делаем
+        if parent != "":
             return
-        
         group_name = self.tree.item(item)["text"]
         group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
-        if group_index <= 0:  # Нельзя переместить первую группу выше
+        if group_index <= 0:
             return
-        
-        # Меняем местами группы
         self.groups[group_index], self.groups[group_index - 1] = self.groups[group_index - 1], self.groups[group_index]
-        
-        # Сохраняем конфигурацию
         self.save_config()
-        
-        # Обновляем дерево и сохраняем выбор
         self.update_camera_list()
         new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
         self.tree.selection_set(new_iid)
         self.tree.focus(new_iid)
 
     def move_group_down(self):
-        """Перемещает выбранную группу вниз в списке групп."""
         selection = self.tree.selection()
         if not selection:
             return
         item = selection[0]
         parent = self.tree.parent(item)
-        if parent != "":  # Если выбрана не группа, а камера, ничего не делаем
+        if parent != "":
             return
-        
         group_name = self.tree.item(item)["text"]
         group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
-        if group_index == -1 or group_index >= len(self.groups) - 1:  # Нельзя переместить последнюю группу ниже
+        if group_index == -1 or group_index >= len(self.groups) - 1:
             return
-        
-        # Меняем местами группы
         self.groups[group_index], self.groups[group_index + 1] = self.groups[group_index + 1], self.groups[group_index]
-        
-        # Сохраняем конфигурацию
         self.save_config()
-        
-        # Обновляем дерево и сохраняем выбор
         self.update_camera_list()
         new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
         self.tree.selection_set(new_iid)
@@ -520,7 +556,6 @@ class MainApp(tk.Tk):
         self.selected_camera = None
         self.edit_camera_button.config(state=tk.DISABLED)
         if self.is_editing_structure:
-            # Управляем состоянием кнопок со стрелками
             if selection:
                 self.arrow_up_button.config(state=tk.NORMAL)
                 self.arrow_down_button.config(state=tk.NORMAL)
@@ -530,17 +565,14 @@ class MainApp(tk.Tk):
         if selection:
             item = selection[0]
             parent = self.tree.parent(item)
-            if parent == "" and not self.is_editing_structure:  # Это группа, и не в режиме редактирования
+            if parent == "" and not self.is_editing_structure:
                 group_name = self.tree.item(item)["text"]
                 current_group = next((g for g in self.groups if g.get("current", False)), None)
                 if current_group and current_group.get("name") == group_name:
-                    return  # Не делаем ничего, если выбрана текущая группа
+                    return
                 if messagebox.askyesno("Подтверждение", f"Хотите переключить вывод на '{group_name}'?"):
                     for group in self.groups:
-                        if group.get("name") == group_name:
-                            group["current"] = True
-                        else:
-                            group["current"] = False
+                        group["current"] = (group["name"] == group_name)
                     for cell in self.cells:
                         cell.cam = None
                         cell.update_display()
@@ -559,30 +591,24 @@ class MainApp(tk.Tk):
                     self.save_config()
                     self.update_camera_list()
                     self.start_load_group_to_drivers()
-            else:  # Это камера
-                if not self.is_editing_structure:  # Проверяем, не в режиме редактирования структуры
+            else:
+                if not self.is_editing_structure:
                     cam_text = self.tree.item(item)["text"]
                     self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
                     if self.selected_camera:
                         self.edit_camera_button.config(state=tk.NORMAL)
 
     def toggle_structure_edit(self):
-        """Переключает режим редактирования структуры."""
         if not self.is_editing_structure:
-            # Входим в режим редактирования
             self.is_editing_structure = True
             self.edit_structure_button.config(text="Сохранить\nизменения")
-            # Отключаем верхний фрейм
             for widget in self.top_frame.winfo_children():
                 for child in widget.winfo_children():
                     child.configure(state='disabled')
-            # Отключаем обновление кадров
             if self.update_frames_id:
                 self.after_cancel(self.update_frames_id)
                 self.update_frames_id = None
-            # Показываем фрейм с кнопками со стрелками перед кнопкой "Изменить структуру"
             self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3, before=self.edit_structure_button)
-            # Устанавливаем состояние кнопок в зависимости от выбора в дереве
             if self.tree.selection():
                 self.arrow_up_button.config(state=tk.NORMAL)
                 self.arrow_down_button.config(state=tk.NORMAL)
@@ -590,26 +616,25 @@ class MainApp(tk.Tk):
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
         else:
-            # Выходим из режима редактирования
             self.is_editing_structure = False
             self.edit_structure_button.config(text="Изменить\nструктуру")
-            # Включаем верхний фрейм
             for widget in self.top_frame.winfo_children():
                 for child in widget.winfo_children():
                     child.configure(state='normal')
-            # Скрываем фрейм с кнопками со стрелками
             self.tree_buttons_frame.pack_forget()
-            # Деактивируем кнопки со стрелками
             self.arrow_up_button.config(state=tk.DISABLED)
             self.arrow_down_button.config(state=tk.DISABLED)
-            # Восстанавливаем обновление кадров
             selected_rate = self.frame_rate_combobox.get()
             period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
             self.set_frame_rate(period_map.get(selected_rate, 1000))
 
     def add_camera(self):
+        self.set_frame_rate(5000)
         dialog = CameraDialog(self)
         dialog.wait_window()
+        selected_rate = self.frame_rate_combobox.get()
+        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
+        self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             street, link = dialog.result
             if not street or not link:
@@ -618,18 +643,13 @@ class MainApp(tk.Tk):
             if any(cam["link"] == link for cam in self.cams):
                 messagebox.showwarning("Ошибка", "Камера с такой ссылкой уже существует")
                 return
-            # Добавляем камеру в список cams
             new_cam = {"street": street, "link": link}
             self.cams.append(new_cam)
-
             added = False
             added_group_name = None
             is_current = False
-
             current_group = next((g for g in self.groups if g.get("current", False)), None)
-
             if not self.groups:
-                # Если групп нет, создаем первую как текущую
                 new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
                 new_group = {
                     "name": new_group_name,
@@ -642,18 +662,15 @@ class MainApp(tk.Tk):
                 is_current = True
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group '{new_group_name}' and added camera")
             else:
-                # Сначала проверяем текущую группу
                 if current_group:
                     grid = current_group.get("grid", [None] * 9)
                     if None in grid:
                         free_index = grid.index(None)
                         grid[free_index] = link
-                        current_group["grid"] = self.compact_grid(grid)  # Уплотняем после добавления
+                        current_group["grid"] = self.compact_grid(grid)
                         added = True
                         added_group_name = current_group["name"]
                         is_current = True
-
-                # Если не добавили, проверяем другие группы
                 if not added:
                     for group in self.groups:
                         if group == current_group:
@@ -662,12 +679,10 @@ class MainApp(tk.Tk):
                         if None in grid:
                             free_index = grid.index(None)
                             grid[free_index] = link
-                            group["grid"] = self.compact_grid(grid)  # Уплотняем после добавления
+                            group["grid"] = self.compact_grid(grid)
                             added = True
                             added_group_name = group["name"]
                             break
-
-                # Если нигде нет места, создаем новую группу
                 if not added:
                     new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
                     new_group = {
@@ -678,9 +693,7 @@ class MainApp(tk.Tk):
                     self.groups.append(new_group)
                     added = True
                     added_group_name = new_group_name
-
             if added:
-                # Обновляем ячейки и драйверы, если добавили в текущую группу
                 if is_current:
                     current_grid = current_group.get("grid", [None] * 9)
                     for i in range(9):
@@ -690,17 +703,12 @@ class MainApp(tk.Tk):
                             self.cells[i].update_display()
                             break
                     self.start_load_group_to_drivers()
-
-                # Сохраняем и обновляем дерево
                 self.save_config()
                 self.update_camera_list()
-
-                # Сообщаем пользователю
                 message = f"Камера добавлена в группу '{added_group_name}'"
                 if not is_current:
                     message += ". Хотите переключиться на эту группу?"
                     if messagebox.askyesno("Информация", message):
-                        # Переключаем на новую группу (опционально)
                         for group in self.groups:
                             group["current"] = (group["name"] == added_group_name)
                         self.save_config()
@@ -715,18 +723,16 @@ class MainApp(tk.Tk):
     def edit_camera(self):
         if not self.selected_camera:
             return
-        self.original_period = self.period
-        self.set_frame_rate(5000)  # Устанавливаем 5 секунд на время диалога
+        self.set_frame_rate(5000)
         dialog = CameraDialog(self, street=self.selected_camera["street"], link=self.selected_camera["link"], title="Изменить камеру")
         dialog.wait_window()
-        # Восстанавливаем частоту из комбобокса
         selected_rate = self.frame_rate_combobox.get()
         period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
         self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             new_street, new_link = dialog.result
             if new_street == self.selected_camera["street"] and new_link == self.selected_camera["link"]:
-                return  # Ничего не делаем, если данные не изменились
+                return
             if not new_street or not new_link:
                 messagebox.showwarning("Ошибка", "Название и ссылка не могут быть пустыми")
                 return
@@ -736,18 +742,14 @@ class MainApp(tk.Tk):
             old_link = self.selected_camera["link"]
             self.selected_camera["street"] = new_street
             self.selected_camera["link"] = new_link
-            # Обновляем ссылки во всех группах
             for group in self.groups:
                 grid = group.get("grid", [])
                 for i in range(len(grid)):
                     if grid[i] == old_link:
                         grid[i] = new_link
-                group["grid"] = self.compact_grid(grid)  # Уплотняем после изменения
-            # Сохраняем конфиг
+                group["grid"] = self.compact_grid(grid)
             self.save_config()
-            # Обновляем дерево
             self.update_camera_list()
-            # Если в текущей группе, обновляем ячейку
             current_group = next((g for g in self.groups if g.get("current", False)), None)
             if current_group:
                 current_grid = current_group.get("grid", [None] * 9)
@@ -755,7 +757,6 @@ class MainApp(tk.Tk):
                     if i < len(current_grid) and current_grid[i] == new_link:
                         self.cells[i].cam = self.selected_camera
                         self.cells[i].update_display()
-                        # Перезагружаем драйвер для этой ячейки
                         driver = self.drivers[i]
                         if driver:
                             driver.get(new_link)
@@ -770,18 +771,16 @@ class MainApp(tk.Tk):
         if not current_group:
             messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
             return
-        self.original_period = self.period
-        self.set_frame_rate(5000)  # Устанавливаем 5 секунд на время диалога
+        self.set_frame_rate(5000)
         dialog = CameraDialog(self, street=current_group["name"], title="Изменить группу", is_group=True)
         dialog.wait_window()
-        # Восстанавливаем частоту из комбобокса
         selected_rate = self.frame_rate_combobox.get()
         period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
         self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
-            new_name, _ = dialog.result  # Игнорируем ссылку, так как она не используется
+            new_name, _ = dialog.result
             if new_name == current_group["name"]:
-                return  # Ничего не делаем, если имя не изменилось
+                return
             if not new_name:
                 messagebox.showwarning("Ошибка", "Название группы не может быть пустым")
                 return
@@ -864,15 +863,14 @@ class MainApp(tk.Tk):
     def save_config(self):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
         if current_group:
-            current_group["grid"] = [cell.cam["link"] if cell.cam else None for cell in self.cells]
-        # Уплотняем все grid перед сохранением
+            current_grid = [cell.cam["link"] if cell.cam else None for cell in self.cells]
+            current_group["grid"] = self.compact_grid(current_grid)
         for group in self.groups:
             group["grid"] = self.compact_grid(group.get("grid", [None] * 9))
         self.config["groups"] = self.groups
         self.config["cams"] = self.cams
         with open("config.json", "w", encoding="utf-8") as f:
             json.dump(self.config, f, ensure_ascii=False, indent=2)
-        # Если изменился layout текущей группы, обновляем ячейки и драйверы
         if current_group:
             current_grid = current_group.get("grid", [None] * 9)
             for i in range(9):

@@ -128,9 +128,9 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-389",
         "http://maps.ufanet.ru/orenburg#001-999-8-414",
         "http://maps.ufanet.ru/orenburg#1631079321GRR302",
-        "http://maps.ufanet.ru/orenburg#1583932059BCA223"
+        null
       ],
-      "current": false
+      "current": true
     },
     {
       "name": "Другие камеры",
@@ -142,10 +142,10 @@
         "http://maps.ufanet.ru/orenburg#1712476123VTR83",
         "http://maps.ufanet.ru/orenburg#1689337810XAG400",
         "http://maps.ufanet.ru/orenburg#1715944809",
-        null,
+        "http://maps.ufanet.ru/orenburg#1583932059BCA223",
         null
       ],
-      "current": true
+      "current": false
     }
   ],
   "period": 2
