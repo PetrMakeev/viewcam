@@ -69,8 +69,8 @@
       "street": "Туркестанская - ул. Парковская"
     },
     {
-      "link": "http://maps.ufanet.ru/orenburg#1590149334TKB486",
-      "street": "Промысловый - Газовиков"
+      "street": "Промысловый - Газовиков",
+      "link": "http://maps.ufanet.ru/orenburg#1590149334TKB486"
     },
     {
       "street": "Победы - Орская",
@@ -126,10 +126,10 @@
         "http://maps.ufanet.ru/orenburg#1631079321GRR302",
         null
       ],
-      "current": false
+      "current": true
     },
     {
-      "name": "Другие камеры",
+      "name": "Группа 3",
       "grid": [
         "http://maps.ufanet.ru/orenburg#1590149334TKB486",
         "http://maps.ufanet.ru/orenburg#1551184185",
@@ -141,7 +141,7 @@
         null,
         null
       ],
-      "current": true
+      "current": false
     }
   ],
   "period": 2
