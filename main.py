@@ -127,6 +127,7 @@ class CellFrame(tk.Frame):
         
         self.image_label = Label(self)
         self.image_label.pack(expand=True, fill=tk.BOTH)
+        self.image_label.bind("<Button-1>", lambda event: self.winfo_toplevel().on_cell_click(self.index))
         
         self.update_display()
 
@@ -427,6 +428,39 @@ class MainApp(tk.Tk):
             self.tooltip.destroy()
             self.tooltip = None
             logger.info(f"[{time.strftime('%H:%M:%S')}] Tooltip hidden")
+
+    def on_cell_click(self, cell_index):
+        if not self.cells[cell_index].cam:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Clicked on empty cell {cell_index}")
+            return
+        cam = self.cells[cell_index].cam
+        cam_street = cam["street"]
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Clicked on cell {cell_index}: selecting camera '{cam_street}'")
+        current_group = next((g for g in self.groups if g.get("current", False)), None)
+        if not current_group:
+            logger.warning(f"[{time.strftime('%H:%M:%S')}] No current group found for cell click")
+            messagebox.showwarning("Ошибка", "Нет текущей группы для выбора камеры")
+            return
+        group_name = current_group.get("name", "Группа")
+        # Найти группу в дереве
+        group_iid = None
+        for iid in self.tree.get_children():
+            if self.tree.item(iid)["text"] == group_name:
+                group_iid = iid
+                break
+        if not group_iid:
+            logger.warning(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in tree")
+            messagebox.showwarning("Ошибка", f"Группа '{group_name}' не найдена в дереве")
+            return
+        # Найти камеру в группе
+        for child_iid in self.tree.get_children(group_iid):
+            if self.tree.item(child_iid)["text"] == cam_street:
+                self.tree.selection_set(child_iid)
+                self.tree.focus(child_iid)
+                self.on_tree_select(None)  # Обновить состояние кнопок и selected_camera
+                return
+        logger.warning(f"[{time.strftime('%H:%M:%S')}] Camera '{cam_street}' not found in group '{group_name}'")
+        messagebox.showwarning("Ошибка", f"Камера '{cam_street}' не найдена в группе '{group_name}'")
 
     def clean_config_data(self):
         try:
@@ -790,7 +824,6 @@ class MainApp(tk.Tk):
             if not group:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in move_up")
                 return
-            # Проверяем, что group_iid существует
             if not self.tree.exists(group_iid):
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Group IID '{group_iid}' not found in tree")
                 return
@@ -1243,7 +1276,7 @@ class MainApp(tk.Tk):
         for cell in self.cells:
             if not cell.cam or not self.drivers[cell.index]:
                 cell.photo = self.nocam_photo if not cell.cam else self.noconnect_photo
-                cell.image_label.config(image=cell.photo)
+                self.image_label.config(image=cell.photo)
                 continue
             driver = self.drivers[cell.index]
             try:
