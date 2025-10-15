@@ -683,6 +683,9 @@ class MainApp(tk.Tk):
         self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             street, link = dialog.result
+            if not link.startswith("http://maps.ufanet.ru/"):
+                messagebox.showwarning("Ошибка", "Ссылка должна начинаться с 'http://maps.ufanet.ru/'")
+                return
             if not street or not link:
                 messagebox.showwarning("Ошибка", "Название и ссылка не могут быть пустыми")
                 return
@@ -763,7 +766,7 @@ class MainApp(tk.Tk):
                         self.update_camera_list()
                 self.save_config()
                 self.update_camera_list()
-                if not is_current and not messagebox.askyesno("Информация", "Хотите добавить ещё одну камеру?"):
+                if not is_current:
                     messagebox.showinfo("Информация", f"Камера добавлена в группу '{added_group_name}'")
             else:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to add camera: no space found")
@@ -780,8 +783,6 @@ class MainApp(tk.Tk):
         self.set_frame_rate(period_map.get(selected_rate, 1000))
         if dialog.result:
             new_street, new_link = dialog.result
-            if new_street == self.selected_camera["street"] and new_link == self.selected_camera["link"]:
-                return
             if not new_street or not new_link:
                 messagebox.showwarning("Ошибка", "Название и ссылка не могут быть пустыми")
                 return

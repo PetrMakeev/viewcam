@@ -103,6 +103,14 @@
     {
       "street": "въезд в поселок им. Куйбышева",
       "link": "http://maps.ufanet.ru/orenburg#1480337775"
+    },
+    {
+      "street": "ул. Ногина - Братьев Коростелевых",
+      "link": "http://maps.ufanet.ru/orenburg#1716888705SPU7"
+    },
+    {
+      "street": "ул Комсомольская, д 126",
+      "link": "http://maps.ufanet.ru/orenburg#1759214778NEY18"
     }
   ],
   "groups": [
@@ -147,6 +155,21 @@
         "http://maps.ufanet.ru/orenburg#1689337810XAG400",
         "http://maps.ufanet.ru/orenburg#1583932059BCA223",
         "http://maps.ufanet.ru/orenburg#1480337775",
+        "http://maps.ufanet.ru/orenburg#1716888705SPU7"
+      ],
+      "current": false
+    },
+    {
+      "name": "Новая группа 2025-10-15",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1759214778NEY18",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
         null
       ],
       "current": true
