@@ -128,6 +128,7 @@ class CellFrame(tk.Frame):
         self.image_label = Label(self)
         self.image_label.pack(expand=True, fill=tk.BOTH)
         self.image_label.bind("<Button-1>", lambda event: self.winfo_toplevel().on_cell_click(self.index))
+        self.image_label.bind("<Double-Button-1>", lambda event: self.winfo_toplevel().open_modal(self.index))
         
         self.update_display()
 
@@ -204,6 +205,14 @@ class MainApp(tk.Tk):
             'move_down': '',
             'move_bottom': ''
         }
+        self.full_update = True
+        self.modal_window = None
+        self.modal_name_label = None
+        self.modal_image_label = None
+        self.modal_photo = None
+        self.modal_image_size = None
+        self.modal_cell_index = None
+        self.original_pil_images = [None] * 9
         
         style = ttk.Style()
         style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))
@@ -428,6 +437,60 @@ class MainApp(tk.Tk):
             self.tooltip.destroy()
             self.tooltip = None
             logger.info(f"[{time.strftime('%H:%M:%S')}] Tooltip hidden")
+
+    def open_modal(self, cell_index):
+        if self.cells[cell_index].cam is None:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Double-click on empty cell {cell_index}")
+            return
+        if self.modal_window:
+            self.close_modal()
+        cam = self.cells[cell_index].cam
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Opening modal for camera '{cam['street']}' in cell {cell_index}")
+        self.modal_cell_index = cell_index
+        self.full_update = False
+        modal = Toplevel(self)
+        modal.title(cam["street"])
+        modal.geometry(self.geometry())
+        modal.transient(self)
+        modal.grab_set()
+        modal.bind("<Escape>", self.close_modal)
+        modal_frame = tk.Frame(modal)
+        modal_frame.pack(expand=True, fill=tk.BOTH)
+        self.modal_name_label = Label(modal_frame, text=cam["street"], font=Font(family="Arial", size=11), height=1)
+        self.modal_name_label.pack(fill=tk.X)
+        self.modal_image_label = Label(modal_frame)
+        self.modal_image_label.pack(expand=True, fill=tk.BOTH)
+        self.modal_image_label.bind("<Double-Button-1>", self.close_modal)
+        modal.protocol("WM_DELETE_WINDOW", self.close_modal)
+        self.modal_window = modal
+        modal.update()
+        modal_width = modal.winfo_width()
+        modal_height = modal.winfo_height() - self.modal_name_label.winfo_reqheight()
+        self.modal_image_size = (modal_width, modal_height)
+        # Initial image
+        if self.original_pil_images[cell_index]:
+            resized_modal = self.original_pil_images[cell_index].resize(self.modal_image_size, Image.LANCZOS)
+            self.modal_photo = ImageTk.PhotoImage(resized_modal)
+            self.modal_image_label.config(image=self.modal_photo)
+        # Cancel current update and schedule new
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
+        self.update_frames_id = self.after(self.period, self.update_frames)
+
+    def close_modal(self, event=None):
+        if self.modal_window:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Closing modal window")
+            self.modal_window.destroy()
+            self.modal_window = None
+            self.modal_name_label = None
+            self.modal_image_label = None
+            self.modal_photo = None
+            self.modal_image_size = None
+            self.modal_cell_index = None
+            self.full_update = True
+            if self.update_frames_id:
+                self.after_cancel(self.update_frames_id)
+            self.update_frames_id = self.after(self.period, self.update_frames)
 
     def on_cell_click(self, cell_index):
         if not self.cells[cell_index].cam:
@@ -824,6 +887,7 @@ class MainApp(tk.Tk):
             if not group:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in move_up")
                 return
+            # Проверяем, что group_iid существует
             if not self.tree.exists(group_iid):
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Group IID '{group_iid}' not found in tree")
                 return
@@ -1274,9 +1338,11 @@ class MainApp(tk.Tk):
 
     def update_frames(self):
         for cell in self.cells:
+            if not self.full_update and cell.index != self.modal_cell_index:
+                continue
             if not cell.cam or not self.drivers[cell.index]:
                 cell.photo = self.nocam_photo if not cell.cam else self.noconnect_photo
-                self.image_label.config(image=cell.photo)
+                cell.image_label.config(image=cell.photo)
                 continue
             driver = self.drivers[cell.index]
             try:
@@ -1327,9 +1393,14 @@ class MainApp(tk.Tk):
                             right = x + 1
                             break
                     cropped_image = pil_image.crop((left, 0, right, height))
-                    cropped_image = cropped_image.resize((self.cell_width, self.cell_height), Image.LANCZOS)
-                    cell.photo = ImageTk.PhotoImage(cropped_image)
+                    self.original_pil_images[cell.index] = cropped_image.copy()
+                    resized_small = cropped_image.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+                    cell.photo = ImageTk.PhotoImage(resized_small)
                     cell.image_label.config(image=cell.photo)
+                    if self.modal_cell_index == cell.index and self.modal_image_label:
+                        resized_modal = cropped_image.resize(self.modal_image_size, Image.LANCZOS)
+                        self.modal_photo = ImageTk.PhotoImage(resized_modal)
+                        self.modal_image_label.config(image=self.modal_photo)
                 driver.switch_to.default_content()
             except Exception as e:
                 error_msg = f"[{time.strftime('%H:%M:%S')}] Error updating frame for cell {cell.index}: {str(e)}"
@@ -1360,6 +1431,7 @@ class MainApp(tk.Tk):
             current_grid = current_group.get("grid", [None] * 9)
             for i in range(9):
                 self.cells[i].cam = None  # Очищаем ячейку
+                self.original_pil_images[i] = None
                 link = current_grid[i] if i < len(current_grid) else None
                 if link:
                     for cam in self.cams:
@@ -1370,6 +1442,7 @@ class MainApp(tk.Tk):
             self.start_load_group_to_drivers()
 
     def on_close(self):
+        self.close_modal()
         if self.update_frames_id:
             self.after_cancel(self.update_frames_id)
         for driver in self.drivers:
