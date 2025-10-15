@@ -172,7 +172,7 @@ class MainApp(tk.Tk):
         self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
         
         arrow_down_img = Image.open("resource/arrow-down.png")
-        arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
+        arrow_down_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
         self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
         
         # Загрузка и очистка конфигурации
@@ -675,12 +675,14 @@ class MainApp(tk.Tk):
             self.set_frame_rate(period_map.get(selected_rate, 1000))
 
     def add_camera(self):
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
         self.set_frame_rate(5000)
         dialog = CameraDialog(self)
         dialog.wait_window()
-        selected_rate = self.frame_rate_combobox.get()
-        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
-        self.set_frame_rate(period_map.get(selected_rate, 1000))
+        self.set_frame_rate(self.original_period)  # Восстанавливаем исходный period
+        if self.update_frames_id is None:
+            self.update_frames_id = self.after(self.period, self.update_frames)
         if dialog.result:
             street, link = dialog.result
             if not link.startswith("http://maps.ufanet.ru/"):
@@ -773,14 +775,14 @@ class MainApp(tk.Tk):
                 messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест в группах. Создайте новую группу.")
 
     def edit_camera(self):
-        if not self.selected_camera:
-            return
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
         self.set_frame_rate(5000)
         dialog = CameraDialog(self, street=self.selected_camera["street"], link=self.selected_camera["link"], title="Изменить камеру")
         dialog.wait_window()
-        selected_rate = self.frame_rate_combobox.get()
-        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
-        self.set_frame_rate(period_map.get(selected_rate, 1000))
+        self.set_frame_rate(self.original_period)  # Восстанавливаем исходный period
+        if self.update_frames_id is None:
+            self.update_frames_id = self.after(self.period, self.update_frames)
         if dialog.result:
             new_street, new_link = dialog.result
             if not new_street or not new_link:
@@ -822,18 +824,20 @@ class MainApp(tk.Tk):
                                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error reloading driver for cell {i}: {str(e)}")
 
     def edit_group(self):
-        current_group = next((g for g in self.groups if g.get("current", False)), None)
-        if not current_group:
-            messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
-            return
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
         self.set_frame_rate(5000)
-        dialog = CameraDialog(self, street=current_group["name"], title="Изменить группу", is_group=True)
+        dialog = CameraDialog(self, street=next((g for g in self.groups if g.get("current", False)), {}).get("name", ""), title="Изменить группу", is_group=True)
         dialog.wait_window()
-        selected_rate = self.frame_rate_combobox.get()
-        period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
-        self.set_frame_rate(period_map.get(selected_rate, 1000))
+        self.set_frame_rate(self.original_period)  # Восстанавливаем исходный period
+        if self.update_frames_id is None:
+            self.update_frames_id = self.after(self.period, self.update_frames)
         if dialog.result:
             new_name, _ = dialog.result
+            current_group = next((g for g in self.groups if g.get("current", False)), None)
+            if not current_group:
+                messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
+                return
             if new_name == current_group["name"]:
                 return
             if not new_name:
