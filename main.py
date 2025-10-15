@@ -196,6 +196,13 @@ class MainApp(tk.Tk):
         self.drivers = []
         self.update_frames_id = None
         self.is_editing_structure = False
+        self.tooltip = None
+        self.tooltip_texts = {
+            'move_top': '',
+            'move_up': '',
+            'move_down': '',
+            'move_bottom': ''
+        }
         
         style = ttk.Style()
         style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))
@@ -219,6 +226,8 @@ class MainApp(tk.Tk):
             state=tk.DISABLED
         )
         self.move_top_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        self.move_top_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_top'))
+        self.move_top_button.bind("<Leave>", self.hide_tooltip)
         
         self.arrow_up_button = Button(
             self.tree_buttons_frame,
@@ -227,6 +236,8 @@ class MainApp(tk.Tk):
             state=tk.DISABLED
         )
         self.arrow_up_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 5))
+        self.arrow_up_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_up'))
+        self.arrow_up_button.bind("<Leave>", self.hide_tooltip)
         
         self.arrow_down_button = Button(
             self.tree_buttons_frame,
@@ -235,6 +246,8 @@ class MainApp(tk.Tk):
             state=tk.DISABLED
         )
         self.arrow_down_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 5))
+        self.arrow_down_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_down'))
+        self.arrow_down_button.bind("<Leave>", self.hide_tooltip)
         
         self.move_bottom_button = Button(
             self.tree_buttons_frame,
@@ -243,6 +256,8 @@ class MainApp(tk.Tk):
             state=tk.DISABLED
         )
         self.move_bottom_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+        self.move_bottom_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_bottom'))
+        self.move_bottom_button.bind("<Leave>", self.hide_tooltip)
         
         self.edit_structure_button = Button(
             left_frame,
@@ -382,6 +397,36 @@ class MainApp(tk.Tk):
         self.update_frames()
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def show_tooltip(self, event, button_key):
+        if self.tooltip_texts[button_key] == '':
+            return
+        self.hide_tooltip()  # Уничтожаем старую подсказку, если есть
+        widget = event.widget
+        x = widget.winfo_rootx() + widget.winfo_width() // 2
+        y = widget.winfo_rooty() + 30  # Смещение вниз для видимости
+        self.tooltip = Toplevel(self)
+        self.tooltip.wm_overrideredirect(True)  # Убираем рамку окна
+        self.tooltip.wm_geometry(f"+{x}+{y}")
+        label = Label(
+            self.tooltip,
+            text=self.tooltip_texts[button_key],
+            font=("Arial", 10),
+            background="white",
+            foreground="black",
+            borderwidth=1,
+            relief="solid",
+            padx=5,
+            pady=2
+        )
+        label.pack()
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Showing tooltip for {button_key}: {self.tooltip_texts[button_key]}")
+
+    def hide_tooltip(self, event=None):
+        if self.tooltip:
+            self.tooltip.destroy()
+            self.tooltip = None
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Tooltip hidden")
 
     def clean_config_data(self):
         try:
@@ -842,6 +887,12 @@ class MainApp(tk.Tk):
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
                 self.move_bottom_button.config(state=tk.DISABLED)
+                self.tooltip_texts.update({
+                    'move_top': '',
+                    'move_up': '',
+                    'move_down': '',
+                    'move_bottom': ''
+                })
                 return
             item = selection[0]
             parent = self.tree.parent(item)
@@ -852,6 +903,12 @@ class MainApp(tk.Tk):
                 up_state = tk.NORMAL if group_index > 0 else tk.DISABLED
                 down_state = tk.NORMAL if group_index < len(self.groups) - 1 else tk.DISABLED
                 bottom_state = tk.NORMAL if group_index < len(self.groups) - 1 else tk.DISABLED
+                self.tooltip_texts.update({
+                    'move_top': 'Переместить группу в начало списка',
+                    'move_up': 'Переместить группу на позицию выше',
+                    'move_down': 'Переместить группу на позицию ниже',
+                    'move_bottom': 'Переместить группу в конец списка'
+                })
             else:  # Камера
                 group_iid = parent
                 if not self.tree.exists(group_iid):
@@ -860,6 +917,12 @@ class MainApp(tk.Tk):
                     self.arrow_up_button.config(state=tk.DISABLED)
                     self.arrow_down_button.config(state=tk.DISABLED)
                     self.move_bottom_button.config(state=tk.DISABLED)
+                    self.tooltip_texts.update({
+                        'move_top': '',
+                        'move_up': '',
+                        'move_down': '',
+                        'move_bottom': ''
+                    })
                     return
                 children = self.tree.get_children(group_iid)
                 cam_index = children.index(item)
@@ -871,12 +934,24 @@ class MainApp(tk.Tk):
                     self.arrow_up_button.config(state=tk.DISABLED)
                     self.arrow_down_button.config(state=tk.DISABLED)
                     self.move_bottom_button.config(state=tk.DISABLED)
+                    self.tooltip_texts.update({
+                        'move_top': '',
+                        'move_up': '',
+                        'move_down': '',
+                        'move_bottom': ''
+                    })
                     return
                 non_none = [x for x in group["grid"] if x is not None]
                 top_state = tk.NORMAL if cam_index > 0 else tk.DISABLED
                 up_state = tk.NORMAL if cam_index > 0 else tk.DISABLED
                 down_state = tk.NORMAL if cam_index < len(non_none) - 1 else tk.DISABLED
                 bottom_state = tk.NORMAL if cam_index < len(non_none) - 1 else tk.DISABLED
+                self.tooltip_texts.update({
+                    'move_top': 'Переместить камеру в начало группы',
+                    'move_up': 'Переместить камеру на позицию выше',
+                    'move_down': 'Переместить камеру на позицию ниже',
+                    'move_bottom': 'Переместить камеру в конец группы'
+                })
             self.move_top_button.config(state=top_state)
             self.arrow_up_button.config(state=up_state)
             self.arrow_down_button.config(state=down_state)
@@ -924,6 +999,12 @@ class MainApp(tk.Tk):
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
                 self.move_bottom_button.config(state=tk.DISABLED)
+                self.tooltip_texts.update({
+                    'move_top': '',
+                    'move_up': '',
+                    'move_down': '',
+                    'move_bottom': ''
+                })
         else:
             self.is_editing_structure = False
             self.edit_structure_button.config(text="Изменить\nструктуру")
@@ -935,6 +1016,7 @@ class MainApp(tk.Tk):
             self.arrow_up_button.config(state=tk.DISABLED)
             self.arrow_down_button.config(state=tk.DISABLED)
             self.move_bottom_button.config(state=tk.DISABLED)
+            self.hide_tooltip()  # Скрываем подсказку при выходе из режима редактирования
             selected_rate = self.frame_rate_combobox.get()
             period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
             new_period = period_map.get(selected_rate, 1000)
