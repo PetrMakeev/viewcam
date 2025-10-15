@@ -176,10 +176,13 @@ class MainApp(tk.Tk):
         self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
         
         # Загрузка и очистка конфигурации
-        config = self.clean_config_data()
-        self.cams = config.get("cams", [])
-        self.groups = config.get("groups", [])
-        self.period = config.get("period", 1) * 1000
+        self.config = self.clean_config_data()
+        self.cams = self.config.get("cams", [])
+        self.groups = self.config.get("groups", [])
+        self.period = self.config.get("period", 1) * 1000
+        if self.period not in [1000, 2000, 4000]:
+            logger.warning(f"[{time.strftime('%H:%M:%S')}] Invalid period {self.period // 1000} sec in config. Setting to 1 sec.")
+            self.period = 1000
         self.original_period = self.period
         self.selected_camera = None
         self.drivers = []
@@ -350,8 +353,8 @@ class MainApp(tk.Tk):
         try:
             with open("config.json", "r", encoding="utf-8") as f:
                 config = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            logger.info(f"[{time.strftime('%H:%M:%S')}] config.json not found or corrupted. Using default config.")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] config.json not found or corrupted: {str(e)}. Creating default config.")
             config = {"cams": [], "groups": [], "period": 1}
         
         # 1. Удаление дубликатов камер по ссылке
@@ -408,15 +411,14 @@ class MainApp(tk.Tk):
         groups = [g for g in groups if any(link is not None for link in g["grid"])]
         if len(groups) < initial_group_count:
             logger.info(f"[{time.strftime('%H:%M:%S')}] Removed {initial_group_count - len(groups)} empty groups.")
-            # Проверяем, осталась ли текущая группа
-            current_group = next((g for g in groups if g.get("current", False)), None)
-            if not current_group and groups:
-                groups[0]["current"] = True
-                logger.info(f"[{time.strftime('%H:%M:%S')}] Set first group as current after empty group removal.")
-            elif not groups:
+            if not groups:
                 groups.append({"name": f"Новая группа {time.strftime('%Y-%m-%d')}", "grid": [None] * 9, "current": True})
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Created new empty group as no groups remain.")
-        config["groups"] = groups
+            else:
+                current_group = next((g for g in groups if g.get("current", False)), None)
+                if not current_group:
+                    groups[0]["current"] = True
+                    logger.info(f"[{time.strftime('%H:%M:%S')}] Set first group as current after empty group removal.")
 
         # 5. Добавление потерянных камер в группы
         all_used_links = set()
@@ -482,10 +484,14 @@ class MainApp(tk.Tk):
                         added_group_name = new_group_name
                         logger.info(f"[{time.strftime('%H:%M:%S')}] Created new group '{new_group_name}' for lost camera: {cam['street']}")
         
+        config["groups"] = groups
         # Сохранение очищенной конфигурации
-        with open("config.json", "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        logger.info(f"[{time.strftime('%H:%M:%S')}] Cleaned config saved to config.json.")
+        try:
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Cleaned config saved to config.json.")
+        except Exception as e:
+            logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving cleaned config: {str(e)}")
         
         return config
 
@@ -519,18 +525,17 @@ class MainApp(tk.Tk):
         current_grid = current_group.get("grid", [None] * 9)
         for i in range(9):
             try:
-                if not self.drivers or len(self.drivers) <= i:
-                    logger.warning(f"[{time.strftime('%H:%M:%S')}] Skipping load for cell {i}: drivers not initialized")
+                if not self.drivers or len(self.drivers) <= i or not self.drivers[i]:
+                    logger.warning(f"[{time.strftime('%H:%M:%S')}] Skipping load for cell {i}: driver not initialized")
                     continue
                 url = current_grid[i] if i < len(current_grid) else None
                 driver = self.drivers[i]
-                if driver:
-                    if url:
-                        driver.get(url)
-                        driver.refresh()
-                        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ModalBodyPlayer")))
-                    else:
-                        driver.get('about:blank')
+                if url:
+                    driver.get(url)
+                    driver.refresh()
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ModalBodyPlayer")))
+                else:
+                    driver.get('about:blank')
             except Exception as e:
                 error_msg = f"[{time.strftime('%H:%M:%S')}] Error loading for cell {i}: {str(e)}"
                 logger.error(error_msg)
@@ -557,6 +562,14 @@ class MainApp(tk.Tk):
                     if cam:
                         self.tree.insert(group_iid, "end", text=cam["street"])
         self.expand_tree()
+        # Устанавливаем фокус на текущую группу
+        current_group = next((g for g in self.groups if g.get("current", False)), None)
+        if current_group:
+            for iid in self.tree.get_children():
+                if self.tree.item(iid)["text"] == current_group["name"]:
+                    self.tree.selection_set(iid)
+                    self.tree.focus(iid)
+                    break
 
     def move_group_up(self):
         selection = self.tree.selection()
@@ -607,10 +620,14 @@ class MainApp(tk.Tk):
             else:
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
+            return
+        if not self.groups:
+            messagebox.showwarning("Ошибка", "Нет доступных групп для переключения")
+            return
         if selection:
             item = selection[0]
             parent = self.tree.parent(item)
-            if parent == "" and not self.is_editing_structure:
+            if parent == "":
                 group_name = self.tree.item(item)["text"]
                 current_group = next((g for g in self.groups if g.get("current", False)), None)
                 if current_group and current_group.get("name") == group_name:
@@ -618,30 +635,14 @@ class MainApp(tk.Tk):
                 if messagebox.askyesno("Подтверждение", f"Хотите переключить вывод на '{group_name}'?"):
                     for group in self.groups:
                         group["current"] = (group["name"] == group_name)
-                    for cell in self.cells:
-                        cell.cam = None
-                        cell.update_display()
-                    current_group = next((g for g in self.groups if g.get("current", False)), None)
-                    current_grid = current_group.get("grid", [None] * 9)
-                    for i in range(9):
-                        link = current_grid[i] if i < len(current_grid) else None
-                        if link:
-                            for cam in self.cams:
-                                if cam["link"] == link:
-                                    self.cells[i].cam = cam
-                                    break
-                        else:
-                            self.cells[i].cam = None
-                        self.cells[i].update_display()
+                    self.load_current_group_to_cells()
                     self.save_config()
                     self.update_camera_list()
-                    self.start_load_group_to_drivers()
             else:
-                if not self.is_editing_structure:
-                    cam_text = self.tree.item(item)["text"]
-                    self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
-                    if self.selected_camera:
-                        self.edit_camera_button.config(state=tk.NORMAL)
+                cam_text = self.tree.item(item)["text"]
+                self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
+                if self.selected_camera:
+                    self.edit_camera_button.config(state=tk.NORMAL)
 
     def toggle_structure_edit(self):
         if not self.is_editing_structure:
@@ -753,22 +754,20 @@ class MainApp(tk.Tk):
                             self.cells[i].update_display()
                             break
                     self.start_load_group_to_drivers()
-                self.save_config()
-                self.update_camera_list()
-                message = f"Камера добавлена в группу '{added_group_name}'"
-                if not is_current:
-                    message += ". Хотите переключиться на эту группу?"
-                    if messagebox.askyesno("Информация", message):
+                else:
+                    if messagebox.askyesno("Информация", f"Камера добавлена в группу '{added_group_name}'. Хотите переключиться на эту группу?"):
                         for group in self.groups:
                             group["current"] = (group["name"] == added_group_name)
+                        self.load_current_group_to_cells()
                         self.save_config()
                         self.update_camera_list()
-                        self.start_load_group_to_drivers()
-                else:
-                    messagebox.showinfo("Информация", message)
+                self.save_config()
+                self.update_camera_list()
+                if not is_current and not messagebox.askyesno("Информация", "Хотите добавить ещё одну камеру?"):
+                    messagebox.showinfo("Информация", f"Камера добавлена в группу '{added_group_name}'")
             else:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to add camera: no space found")
-                messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест")
+                messagebox.showerror("Ошибка", "Не удалось добавить камеру: нет свободных мест в группах. Создайте новую группу.")
 
     def edit_camera(self):
         if not self.selected_camera:
@@ -920,12 +919,17 @@ class MainApp(tk.Tk):
         if current_group:
             current_grid = [cell.cam["link"] if cell.cam else None for cell in self.cells]
             current_group["grid"] = self.compact_grid(current_grid)
-        for group in self.groups:
-            group["grid"] = self.compact_grid(group.get("grid", [None] * 9))
         self.config["groups"] = self.groups
         self.config["cams"] = self.cams
-        with open("config.json", "w", encoding="utf-8") as f:
-            json.dump(self.config, f, ensure_ascii=False, indent=2)
+        self.config["period"] = self.period // 1000
+        try:
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=2)
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Config saved to config.json.")
+        except Exception as e:
+            logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
+            messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
+        
         if current_group:
             current_grid = current_group.get("grid", [None] * 9)
             for i in range(9):
@@ -951,6 +955,22 @@ class MainApp(tk.Tk):
                     error_msg = f"[{time.strftime('%H:%M:%S')}] Error quitting driver: {str(e)}"
                     logger.error(error_msg)
         self.destroy()
+
+    def load_current_group_to_cells(self):
+        current_group = next((g for g in self.groups if g.get("current", False)), None)
+        if current_group:
+            current_grid = current_group.get("grid", [None] * 9)
+            for i in range(9):
+                link = current_grid[i] if i < len(current_grid) else None
+                if link:
+                    for cam in self.cams:
+                        if cam["link"] == link:
+                            self.cells[i].cam = cam
+                            break
+                else:
+                    self.cells[i].cam = None
+                self.cells[i].update_display()
+            self.start_load_group_to_drivers()
 
 if __name__ == "__main__":
     app = MainApp()

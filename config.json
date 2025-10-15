@@ -95,6 +95,14 @@
     {
       "street": "ул. Пролетарская - ул. Корецкой",
       "link": "http://maps.ufanet.ru/orenburg#1583932059BCA223"
+    },
+    {
+      "street": "ул. Гаранькина, дом № 17",
+      "link": "http://maps.ufanet.ru/orenburg#001-999-8-423"
+    },
+    {
+      "street": "въезд в поселок им. Куйбышева",
+      "link": "http://maps.ufanet.ru/orenburg#1480337775"
     }
   ],
   "groups": [
@@ -124,9 +132,9 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-389",
         "http://maps.ufanet.ru/orenburg#001-999-8-414",
         "http://maps.ufanet.ru/orenburg#1631079321GRR302",
-        null
+        "http://maps.ufanet.ru/orenburg#001-999-8-423"
       ],
-      "current": true
+      "current": false
     },
     {
       "name": "Группа 3",
@@ -138,10 +146,10 @@
         "http://maps.ufanet.ru/orenburg#1712476123VTR83",
         "http://maps.ufanet.ru/orenburg#1689337810XAG400",
         "http://maps.ufanet.ru/orenburg#1583932059BCA223",
-        null,
+        "http://maps.ufanet.ru/orenburg#1480337775",
         null
       ],
-      "current": false
+      "current": true
     }
   ],
   "period": 2
