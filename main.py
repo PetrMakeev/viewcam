@@ -257,6 +257,16 @@ class MainApp(tk.Tk):
         )
         self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
+        self.delete_camera_button = Button(
+            controls_frame,
+            text="Удалить камеру",
+            font=Font(family="Arial", size=11),
+            command=self.delete_camera,
+            width=20,
+            state=tk.DISABLED
+        )
+        self.delete_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+        
         self.edit_group_button = Button(
             controls_frame,
             text="Изменить группу",
@@ -613,6 +623,7 @@ class MainApp(tk.Tk):
         selection = self.tree.selection()
         self.selected_camera = None
         self.edit_camera_button.config(state=tk.DISABLED)
+        self.delete_camera_button.config(state=tk.DISABLED)
         if self.is_editing_structure:
             if selection:
                 self.arrow_up_button.config(state=tk.NORMAL)
@@ -643,6 +654,7 @@ class MainApp(tk.Tk):
                 self.selected_camera = next((c for c in self.cams if c["street"] == cam_text), None)
                 if self.selected_camera:
                     self.edit_camera_button.config(state=tk.NORMAL)
+                    self.delete_camera_button.config(state=tk.NORMAL)
 
     def toggle_structure_edit(self):
         if not self.is_editing_structure:
@@ -823,6 +835,38 @@ class MainApp(tk.Tk):
                             except Exception as e:
                                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error reloading driver for cell {i}: {str(e)}")
 
+    def delete_camera(self):
+        if not self.selected_camera:
+            return
+        cam_name = self.selected_camera["street"]
+        link = self.selected_camera["link"]
+        if not messagebox.askyesno("Подтверждение", f"Удалить камеру '{cam_name}'?"):
+            return
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Deleting camera '{cam_name}' with link '{link}'")
+        # Удаляем из cams
+        self.cams = [cam for cam in self.cams if cam["link"] != link]
+        # Удаляем из групп и проверяем на пустоту
+        groups_to_remove = []
+        for group in self.groups:
+            grid = group.get("grid", [])
+            new_grid = [l for l in grid if l != link]
+            group["grid"] = self.compact_grid(new_grid)
+            # Не удаляем последнюю группу, даже если она пуста
+            if all(g is None for g in group["grid"]) and len(self.groups) > 1:
+                groups_to_remove.append(group)
+        if groups_to_remove:
+            self.groups = [g for g in self.groups if g not in groups_to_remove]
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Removed {len(groups_to_remove)} empty groups after camera deletion")
+        elif len(self.groups) == 1 and all(g is None for g in self.groups[0]["grid"]):
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Last group '{self.groups[0]['name']}' kept empty after camera deletion")
+        self.selected_camera = None
+        self.edit_camera_button.config(state=tk.DISABLED)
+        self.delete_camera_button.config(state=tk.DISABLED)
+        self.load_current_group_to_cells()  # Синхронизируем ячейки с новым grid
+        self.save_config()
+        self.update_camera_list()
+        self.start_load_group_to_drivers()
+
     def edit_group(self):
         if self.update_frames_id:
             self.after_cancel(self.update_frames_id)
@@ -934,18 +978,19 @@ class MainApp(tk.Tk):
         except Exception as e:
             logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
             messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
-        
+
+    def load_current_group_to_cells(self):
+        current_group = next((g for g in self.groups if g.get("current", False)), None)
         if current_group:
             current_grid = current_group.get("grid", [None] * 9)
             for i in range(9):
+                self.cells[i].cam = None  # Очищаем ячейку
                 link = current_grid[i] if i < len(current_grid) else None
                 if link:
                     for cam in self.cams:
                         if cam["link"] == link:
                             self.cells[i].cam = cam
                             break
-                else:
-                    self.cells[i].cam = None
                 self.cells[i].update_display()
             self.start_load_group_to_drivers()
 
@@ -960,22 +1005,6 @@ class MainApp(tk.Tk):
                     error_msg = f"[{time.strftime('%H:%M:%S')}] Error quitting driver: {str(e)}"
                     logger.error(error_msg)
         self.destroy()
-
-    def load_current_group_to_cells(self):
-        current_group = next((g for g in self.groups if g.get("current", False)), None)
-        if current_group:
-            current_grid = current_group.get("grid", [None] * 9)
-            for i in range(9):
-                link = current_grid[i] if i < len(current_grid) else None
-                if link:
-                    for cam in self.cams:
-                        if cam["link"] == link:
-                            self.cells[i].cam = cam
-                            break
-                else:
-                    self.cells[i].cam = None
-                self.cells[i].update_display()
-            self.start_load_group_to_drivers()
 
 if __name__ == "__main__":
     app = MainApp()
