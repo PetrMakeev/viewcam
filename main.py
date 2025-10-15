@@ -207,7 +207,7 @@ class MainApp(tk.Tk):
         self.arrow_up_button = Button(
             self.tree_buttons_frame,
             image=self.arrow_up_photo,
-            command=self.move_group_up,
+            command=self.move_up,
             state=tk.DISABLED
         )
         self.arrow_up_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
@@ -215,7 +215,7 @@ class MainApp(tk.Tk):
         self.arrow_down_button = Button(
             self.tree_buttons_frame,
             image=self.arrow_down_photo,
-            command=self.move_group_down,
+            command=self.move_down,
             state=tk.DISABLED
         )
         self.arrow_down_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
@@ -581,43 +581,116 @@ class MainApp(tk.Tk):
                     self.tree.focus(iid)
                     break
 
-    def move_group_up(self):
+    def move_up(self):
         selection = self.tree.selection()
         if not selection:
             return
         item = selection[0]
         parent = self.tree.parent(item)
-        if parent != "":
-            return
-        group_name = self.tree.item(item)["text"]
-        group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
-        if group_index <= 0:
-            return
-        self.groups[group_index], self.groups[group_index - 1] = self.groups[group_index - 1], self.groups[group_index]
-        self.save_config()
-        self.update_camera_list()
-        new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
-        self.tree.selection_set(new_iid)
-        self.tree.focus(new_iid)
+        if parent == "":  # Группа
+            group_name = self.tree.item(item)["text"]
+            group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
+            if group_index <= 0:
+                return
+            self.groups[group_index], self.groups[group_index - 1] = self.groups[group_index - 1], self.groups[group_index]
+            self.save_config()
+            self.update_camera_list()
+            new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
+            if new_iid:
+                self.tree.selection_set(new_iid)
+                self.tree.focus(new_iid)
+        else:  # Камера
+            group_iid = parent
+            group_name = self.tree.item(group_iid)["text"]
+            group = next((g for g in self.groups if g.get("name") == group_name), None)
+            if not group:
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in move_up")
+                return
+            # Проверяем, что group_iid существует
+            if not self.tree.exists(group_iid):
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Group IID '{group_iid}' not found in tree")
+                return
+            children = self.tree.get_children(group_iid)
+            cam_index = children.index(item)
+            if cam_index <= 0:
+                return
+            # Swap в grid
+            grid = group["grid"]
+            non_none = [x for x in grid if x is not None]
+            if cam_index >= len(non_none):
+                return  # Не двигаем на пустые ячейки
+            non_none[cam_index], non_none[cam_index - 1] = non_none[cam_index - 1], non_none[cam_index]
+            group["grid"] = non_none + [None] * (9 - len(non_none))
+            logger.info(f"[{time.strftime('%H:%M:%S')}] After move_up swap in group '{group_name}': {non_none}")
+            is_current = group.get("current", False)
+            if is_current:
+                self.load_current_group_to_cells()  # Обновляем cells и drivers по новому grid перед сохранением
+            self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            self.update_camera_list()
+            # Проверяем, что группа всё ещё существует
+            new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
+            if new_group_iid and self.tree.exists(new_group_iid):
+                new_children = self.tree.get_children(new_group_iid)
+                if cam_index - 1 < len(new_children):
+                    new_item = new_children[cam_index - 1]
+                    self.tree.selection_set(new_item)
+                    self.tree.focus(new_item)
+            else:
+                logger.warning(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found after update in move_up")
 
-    def move_group_down(self):
+    def move_down(self):
         selection = self.tree.selection()
         if not selection:
             return
         item = selection[0]
         parent = self.tree.parent(item)
-        if parent != "":
-            return
-        group_name = self.tree.item(item)["text"]
-        group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
-        if group_index == -1 or group_index >= len(self.groups) - 1:
-            return
-        self.groups[group_index], self.groups[group_index + 1] = self.groups[group_index + 1], self.groups[group_index]
-        self.save_config()
-        self.update_camera_list()
-        new_iid = next(iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name)
-        self.tree.selection_set(new_iid)
-        self.tree.focus(new_iid)
+        if parent == "":  # Группа
+            group_name = self.tree.item(item)["text"]
+            group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
+            if group_index == -1 or group_index >= len(self.groups) - 1:
+                return
+            self.groups[group_index], self.groups[group_index + 1] = self.groups[group_index + 1], self.groups[group_index]
+            self.save_config()
+            self.update_camera_list()
+            new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
+            if new_iid:
+                self.tree.selection_set(new_iid)
+                self.tree.focus(new_iid)
+        else:  # Камера
+            group_iid = parent
+            group_name = self.tree.item(group_iid)["text"]
+            group = next((g for g in self.groups if g.get("name") == group_name), None)
+            if not group:
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in move_down")
+                return
+            # Проверяем, что group_iid существует
+            if not self.tree.exists(group_iid):
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Group IID '{group_iid}' not found in tree")
+                return
+            children = self.tree.get_children(group_iid)
+            cam_index = children.index(item)
+            non_none = [x for x in group["grid"] if x is not None]
+            if cam_index >= len(non_none) - 1:
+                return  # Не двигаем на пустые ячейки или если последняя
+            # Swap в grid
+            non_none[cam_index], non_none[cam_index + 1] = non_none[cam_index + 1], non_none[cam_index]
+            group["grid"] = non_none + [None] * (9 - len(non_none))
+            logger.info(f"[{time.strftime('%H:%M:%S')}] After move_down swap in group '{group_name}': {non_none}")
+            is_current = group.get("current", False)
+            if is_current:
+                self.load_current_group_to_cells()  # Обновляем cells и drivers по новому grid перед сохранением
+            self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            self.update_camera_list()
+            # Проверяем, что группа всё ещё существует
+            new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
+            if new_group_iid and self.tree.exists(new_group_iid):
+                new_children = self.tree.get_children(new_group_iid)
+                if cam_index + 1 < len(new_children):
+                    new_item = new_children[cam_index + 1]
+                    self.tree.selection_set(new_item)
+                    self.tree.focus(new_item)
+            else:
+                logger.warning(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found after update in move_down")
 
     def on_tree_select(self, event):
         selection = self.tree.selection()
@@ -625,12 +698,38 @@ class MainApp(tk.Tk):
         self.edit_camera_button.config(state=tk.DISABLED)
         self.delete_camera_button.config(state=tk.DISABLED)
         if self.is_editing_structure:
-            if selection:
-                self.arrow_up_button.config(state=tk.NORMAL)
-                self.arrow_down_button.config(state=tk.NORMAL)
-            else:
+            if not selection:
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
+                return
+            item = selection[0]
+            parent = self.tree.parent(item)
+            if parent == "":  # Группа
+                group_name = self.tree.item(item)["text"]
+                group_index = next((i for i, g in enumerate(self.groups) if g.get("name") == group_name), -1)
+                up_state = tk.NORMAL if group_index > 0 else tk.DISABLED
+                down_state = tk.NORMAL if group_index < len(self.groups) - 1 else tk.DISABLED
+            else:  # Камера
+                group_iid = parent
+                if not self.tree.exists(group_iid):
+                    logger.error(f"[{time.strftime('%H:%M:%S')}] Group IID '{group_iid}' not found in on_tree_select")
+                    self.arrow_up_button.config(state=tk.DISABLED)
+                    self.arrow_down_button.config(state=tk.DISABLED)
+                    return
+                children = self.tree.get_children(group_iid)
+                cam_index = children.index(item)
+                group_name = self.tree.item(group_iid)["text"]
+                group = next((g for g in self.groups if g.get("name") == group_name), None)
+                if not group:
+                    logger.error(f"[{time.strftime('%H:%M:%S')}] Group '{group_name}' not found in on_tree_select")
+                    self.arrow_up_button.config(state=tk.DISABLED)
+                    self.arrow_down_button.config(state=tk.DISABLED)
+                    return
+                non_none = [x for x in group["grid"] if x is not None]
+                up_state = tk.NORMAL if cam_index > 0 else tk.DISABLED
+                down_state = tk.NORMAL if cam_index < len(non_none) - 1 else tk.DISABLED
+            self.arrow_up_button.config(state=up_state)
+            self.arrow_down_button.config(state=down_state)
             return
         if not self.groups:
             messagebox.showwarning("Ошибка", "Нет доступных групп для переключения")
@@ -655,7 +754,7 @@ class MainApp(tk.Tk):
                 if self.selected_camera:
                     self.edit_camera_button.config(state=tk.NORMAL)
                     self.delete_camera_button.config(state=tk.NORMAL)
-
+                    
     def toggle_structure_edit(self):
         if not self.is_editing_structure:
             self.is_editing_structure = True
@@ -665,11 +764,10 @@ class MainApp(tk.Tk):
                     child.configure(state='disabled')
             if self.update_frames_id:
                 self.after_cancel(self.update_frames_id)
-                self.update_frames_id = None
+            self.set_frame_rate(3000)  # 1 кадр в 3 секунды в режиме редактирования
             self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3, before=self.edit_structure_button)
             if self.tree.selection():
-                self.arrow_up_button.config(state=tk.NORMAL)
-                self.arrow_down_button.config(state=tk.NORMAL)
+                self.on_tree_select(None)  # Обновить состояние кнопок
             else:
                 self.arrow_up_button.config(state=tk.DISABLED)
                 self.arrow_down_button.config(state=tk.DISABLED)
@@ -684,7 +782,14 @@ class MainApp(tk.Tk):
             self.arrow_down_button.config(state=tk.DISABLED)
             selected_rate = self.frame_rate_combobox.get()
             period_map = {"Кадр в 1 сек": 1000, "Кадр в 2 сек": 2000, "Кадр в 4 сек": 4000}
-            self.set_frame_rate(period_map.get(selected_rate, 1000))
+            new_period = period_map.get(selected_rate, 1000)
+            if new_period != self.period:
+                self.period = new_period
+                self.config["period"] = self.period // 1000
+                self.save_config()
+            if self.update_frames_id:
+                self.after_cancel(self.update_frames_id)
+            self.update_frames_id = self.after(self.period, self.update_frames)
 
     def add_camera(self):
         if self.update_frames_id:
