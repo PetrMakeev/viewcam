@@ -115,9 +115,23 @@
   ],
   "groups": [
     {
+      "name": "Группа 3",
+      "grid": [
+        "http://maps.ufanet.ru/orenburg#1680255908JDS994",
+        "http://maps.ufanet.ru/orenburg#1695789012NAT241",
+        "http://maps.ufanet.ru/orenburg#1712476123VTR83",
+        "http://maps.ufanet.ru/orenburg#1689337810XAG400",
+        "http://maps.ufanet.ru/orenburg#1583932059BCA223",
+        "http://maps.ufanet.ru/orenburg#1480337775",
+        "http://maps.ufanet.ru/orenburg#1716888705SPU7",
+        "http://maps.ufanet.ru/orenburg#1551184185",
+        "http://maps.ufanet.ru/orenburg#1590149334TKB486"
+      ],
+      "current": false
+    },
+    {
       "name": "Группа 2",
       "grid": [
-        "http://maps.ufanet.ru/orenburg#1689135915DFD23",
         "http://maps.ufanet.ru/orenburg#001-999-8-391",
         "http://maps.ufanet.ru/orenburg#1508408924",
         "http://maps.ufanet.ru/orenburg#1682492709XNQ76",
@@ -125,9 +139,10 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-400",
         "http://maps.ufanet.ru/orenburg#1581078823GZM248",
         "http://maps.ufanet.ru/orenburg#1582875928SNC916",
-        "http://maps.ufanet.ru/orenburg#1716193328PFM85"
+        "http://maps.ufanet.ru/orenburg#1716193328PFM85",
+        "http://maps.ufanet.ru/orenburg#1689135915DFD23"
       ],
-      "current": false
+      "current": true
     },
     {
       "name": "Группа один",
@@ -143,21 +158,6 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-423"
       ],
       "current": false
-    },
-    {
-      "name": "Группа 3",
-      "grid": [
-        "http://maps.ufanet.ru/orenburg#1551184185",
-        "http://maps.ufanet.ru/orenburg#1590149334TKB486",
-        "http://maps.ufanet.ru/orenburg#1680255908JDS994",
-        "http://maps.ufanet.ru/orenburg#1695789012NAT241",
-        "http://maps.ufanet.ru/orenburg#1712476123VTR83",
-        "http://maps.ufanet.ru/orenburg#1689337810XAG400",
-        "http://maps.ufanet.ru/orenburg#1583932059BCA223",
-        "http://maps.ufanet.ru/orenburg#1480337775",
-        "http://maps.ufanet.ru/orenburg#1716888705SPU7"
-      ],
-      "current": true
     },
     {
       "name": "Новая группа 2025-10-15",
