@@ -172,7 +172,7 @@ class MainApp(tk.Tk):
         self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
         
         arrow_down_img = Image.open("resource/arrow-down.png")
-        arrow_down_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
+        arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
         self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
         
         # Загрузка и очистка конфигурации
