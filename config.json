@@ -157,7 +157,7 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-414",
         "http://maps.ufanet.ru/orenburg#1631079321GRR302"
       ],
-      "current": true
+      "current": false
     },
     {
       "name": "Новая группа 2025-10-16",
@@ -172,7 +172,7 @@
         null,
         null
       ],
-      "current": false
+      "current": true
     }
   ],
   "period": 1

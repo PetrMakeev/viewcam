@@ -96,7 +96,8 @@ class CameraDialog(Toplevel):
 
     def accept(self):
         self.result = (self.street_entry.get(), self.link_entry.get())
-        self.destroy()
+        self.destroy()       
+        
 
 class CellFrame(tk.Frame):
     def __init__(self, parent, index):
