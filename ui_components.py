@@ -96,10 +96,33 @@ class CameraDialog(Toplevel):
 
     def accept(self):
         self.result = (self.street_entry.get(), self.link_entry.get())
-        self.destroy()       
-        
+        self.destroy()
 
 class CellFrame(tk.Frame):
+    def __init__(self, parent, index):
+        super().__init__(parent)
+        self.index = index
+        self.cam = None
+        
+        self.name_label = Label(self, text="", font=Font(family="Arial", size=11), height=1)
+        self.name_label.pack(fill=tk.X)
+        
+        self.image_label = Label(self)
+        self.image_label.pack(expand=True, fill=tk.BOTH)
+        self.image_label.bind("<Button-1>", lambda event: self.winfo_toplevel().on_cell_click(self.index))
+        self.image_label.bind("<Double-Button-1>", lambda event: self.winfo_toplevel().open_modal(self.index))
+        
+        self.update_display()
+
+    def update_display(self):
+        if not self.cam:
+            self.name_label.config(text="")
+            self.photo = self.winfo_toplevel().nocam_photo
+            self.image_label.config(image=self.photo)
+        else:
+            self.name_label.config(text=self.cam["street"])
+            self.photo = self.winfo_toplevel().noconnect_photo
+            self.image_label.config(image=self.photo)
     def __init__(self, parent, index):
         super().__init__(parent)
         self.index = index
