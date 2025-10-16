@@ -101,10 +101,6 @@
       "link": "http://maps.ufanet.ru/orenburg#001-999-8-423"
     },
     {
-      "street": "въезд в поселок им. Куйбышева",
-      "link": "http://maps.ufanet.ru/orenburg#1480337775"
-    },
-    {
       "street": "ул. Ногина - Братьев Коростелевых",
       "link": "http://maps.ufanet.ru/orenburg#1716888705SPU7"
     },
@@ -122,10 +118,10 @@
         "http://maps.ufanet.ru/orenburg#1695789012NAT241",
         "http://maps.ufanet.ru/orenburg#1689337810XAG400",
         "http://maps.ufanet.ru/orenburg#1583932059BCA223",
-        "http://maps.ufanet.ru/orenburg#1480337775",
         "http://maps.ufanet.ru/orenburg#1716888705SPU7",
+        "http://maps.ufanet.ru/orenburg#1590149334TKB486",
         "http://maps.ufanet.ru/orenburg#1551184185",
-        "http://maps.ufanet.ru/orenburg#1590149334TKB486"
+        null
       ],
       "current": true
     },
@@ -154,8 +150,8 @@
         "http://maps.ufanet.ru/orenburg#001-999-8-424",
         "http://maps.ufanet.ru/orenburg#1689338108MFY826",
         "http://maps.ufanet.ru/orenburg#001-999-8-389",
-        "http://maps.ufanet.ru/orenburg#001-999-8-414",
-        "http://maps.ufanet.ru/orenburg#1631079321GRR302"
+        "http://maps.ufanet.ru/orenburg#1631079321GRR302",
+        "http://maps.ufanet.ru/orenburg#001-999-8-414"
       ],
       "current": false
     },

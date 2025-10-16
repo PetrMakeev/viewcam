@@ -21,7 +21,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-
+from config_tools import clean_config_data, compact_grid, save_config
 
 # Настройка logging в файл
 logging.basicConfig(filename='app.log', level=logging.ERROR, force=True)
@@ -71,7 +71,7 @@ class MainApp(tk.Tk):
         self.arrow_bottom_photo = ImageTk.PhotoImage(arrow_bottom_img)
         
         # Загрузка и очистка конфигурации
-        self.config = self.clean_config_data()
+        self.config = clean_config_data(self)
         self.cams = self.config.get("cams", [])
         self.groups = self.config.get("groups", [])
         self.period = self.config.get("period", 1) * 1000
@@ -410,156 +410,6 @@ class MainApp(tk.Tk):
         logger.warning(f"[{time.strftime('%H:%M:%S')}] Camera '{cam_street}' not found in group '{group_name}'")
         messagebox.showwarning("Ошибка", f"Камера '{cam_street}' не найдена в группе '{group_name}'")
 
-    def clean_config_data(self):
-        try:
-            with open("config.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] config.json not found or corrupted: {str(e)}. Creating default config.")
-            config = {"cams": [], "groups": [], "period": 1}
-        
-        # 1. Удаление дубликатов камер по ссылке
-        cams = config.get("cams", [])
-        seen_links = set()
-        unique_cams = []
-        for cam in cams:
-            link = cam.get("link")
-            if link and link not in seen_links:
-                seen_links.add(link)
-                unique_cams.append(cam)
-            else:
-                logger.info(f"[{time.strftime('%H:%M:%S')}] Removed duplicate camera with link: {link}")
-        config["cams"] = unique_cams
-        if len(unique_cams) < len(cams):
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Duplicates removed from cams list. Remaining: {len(unique_cams)}")
-
-        # 2. Очистка групп от недействительных ссылок
-        existing_links = {cam["link"] for cam in config["cams"]}
-        groups = config.get("groups", [])
-        invalid_links_found = False
-        for group in groups:
-            grid = group.get("grid", [None] * 9)
-            new_grid = [link if link in existing_links or link is None else None for link in grid]
-            if new_grid != grid:
-                invalid_links_found = True
-                logger.info(f"[{time.strftime('%H:%M:%S')}] Removed invalid links from group '{group.get('name', 'Группа')}'")
-            group["grid"] = [x for x in new_grid if x is not None] + [None] * (9 - len([x for x in new_grid if x is not None]))
-        if invalid_links_found:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Invalid links removed from groups.")
-
-        # 3. Удаление дубликатов ссылок по всем группам (глобально)
-        seen_links = set()
-        duplicates_found = False
-        for group in groups:
-            grid = group.get("grid", [None] * 9)
-            new_grid = []
-            for link in grid:
-                if link is None:
-                    new_grid.append(None)
-                elif link not in seen_links:
-                    seen_links.add(link)
-                    new_grid.append(link)
-                else:
-                    new_grid.append(None)
-                    duplicates_found = True
-                    logger.info(f"[{time.strftime('%H:%M:%S')}] Removed duplicate link '{link}' from group '{group.get('name', 'Группа')}'")
-            group["grid"] = [x for x in new_grid if x is not None] + [None] * (9 - len([x for x in new_grid if x is not None]))
-        if duplicates_found:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Global duplicates removed from groups.")
-
-        # 4. Удаление пустых групп
-        initial_group_count = len(groups)
-        groups = [g for g in groups if any(link is not None for link in g["grid"])]
-        if len(groups) < initial_group_count:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Removed {initial_group_count - len(groups)} empty groups.")
-            if not groups:
-                groups.append({"name": f"Новая группа {time.strftime('%Y-%m-%d')}", "grid": [None] * 9, "current": True})
-                logger.info(f"[{time.strftime('%H:%M:%S')}] Created new empty group as no groups remain.")
-            else:
-                current_group = next((g for g in groups if g.get("current", False)), None)
-                if not current_group:
-                    groups[0]["current"] = True
-                    logger.info(f"[{time.strftime('%H:%M:%S')}] Set first group as current after empty group removal.")
-
-        # 5. Добавление потерянных камер в группы
-        all_used_links = set()
-        for group in groups:
-            for link in group.get("grid", []):
-                if link:
-                    all_used_links.add(link)
-        
-        lost_cams = [cam for cam in config["cams"] if cam["link"] not in all_used_links]
-        if lost_cams:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Found {len(lost_cams)} lost cameras. Adding to groups.")
-            for cam in lost_cams:
-                link = cam["link"]
-                added = False
-                added_group_name = None
-                current_group = next((g for g in groups if g.get("current", False)), None)
-                
-                if not groups:
-                    new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
-                    new_group = {
-                        "name": new_group_name,
-                        "grid": [link] + [None] * 8,
-                        "current": True
-                    }
-                    groups.append(new_group)
-                    added = True
-                    added_group_name = new_group_name
-                    logger.info(f"[{time.strftime('%H:%M:%S')}] Created first group '{new_group_name}' for lost camera: {cam['street']}")
-                else:
-                    if current_group:
-                        grid = current_group.get("grid", [None] * 9)
-                        if None in grid:
-                            free_index = grid.index(None)
-                            grid[free_index] = link
-                            current_group["grid"] = [x for x in grid if x is not None] + [None] * (9 - len([x for x in grid if x is not None]))
-                            added = True
-                            added_group_name = current_group["name"]
-                            logger.info(f"[{time.strftime('%H:%M:%S')}] Added lost camera '{cam['street']}' to current group '{added_group_name}'")
-                    
-                    if not added:
-                        for group in groups:
-                            if group == current_group:
-                                continue
-                            grid = group.get("grid", [None] * 9)
-                            if None in grid:
-                                free_index = grid.index(None)
-                                grid[free_index] = link
-                                group["grid"] = [x for x in grid if x is not None] + [None] * (9 - len([x for x in grid if x is not None]))
-                                added = True
-                                added_group_name = group["name"]
-                                logger.info(f"[{time.strftime('%H:%M:%S')}] Added lost camera '{cam['street']}' to group '{added_group_name}'")
-                                break
-                    
-                    if not added:
-                        new_group_name = f"Новая группа {time.strftime('%Y-%m-%d')}"
-                        new_group = {
-                            "name": new_group_name,
-                            "grid": [link] + [None] * 8,
-                            "current": False
-                        }
-                        groups.append(new_group)
-                        added = True
-                        added_group_name = new_group_name
-                        logger.info(f"[{time.strftime('%H:%M:%S')}] Created new group '{new_group_name}' for lost camera: {cam['street']}")
-        
-        config["groups"] = groups
-        # Сохранение очищенной конфигурации
-        try:
-            with open("config.json", "w", encoding="utf-8") as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Cleaned config saved to config.json.")
-        except Exception as e:
-            logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving cleaned config: {str(e)}")
-        
-        return config
-
-    def compact_grid(self, grid):
-        non_none = [x for x in grid if x is not None]
-        return non_none + [None] * (9 - len(non_none))
-
     def initialize_drivers(self):
         self.drivers = []
         for _ in range(9):
@@ -646,7 +496,8 @@ class MainApp(tk.Tk):
             logger.info(f"[{time.strftime('%H:%M:%S')}] Moving group '{group_name}' to top")
             group = self.groups.pop(group_index)
             self.groups.insert(0, group)
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_iid:
@@ -679,7 +530,8 @@ class MainApp(tk.Tk):
             is_current = group.get("current", False)
             if is_current:
                 self.load_current_group_to_cells()
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_group_iid and self.tree.exists(new_group_iid):
@@ -705,7 +557,8 @@ class MainApp(tk.Tk):
             logger.info(f"[{time.strftime('%H:%M:%S')}] Moving group '{group_name}' to bottom")
             group = self.groups.pop(group_index)
             self.groups.append(group)
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_iid:
@@ -735,7 +588,8 @@ class MainApp(tk.Tk):
             is_current = group.get("current", False)
             if is_current:
                 self.load_current_group_to_cells()
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_group_iid and self.tree.exists(new_group_iid):
@@ -759,7 +613,8 @@ class MainApp(tk.Tk):
             if group_index <= 0:
                 return
             self.groups[group_index], self.groups[group_index - 1] = self.groups[group_index - 1], self.groups[group_index]
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_iid:
@@ -791,7 +646,8 @@ class MainApp(tk.Tk):
             is_current = group.get("current", False)
             if is_current:
                 self.load_current_group_to_cells()  # Обновляем cells и drivers по новому grid перед сохранением
-            self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            #self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            save_config(self)
             self.update_camera_list()
             # Проверяем, что группа всё ещё существует
             new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
@@ -816,7 +672,8 @@ class MainApp(tk.Tk):
             if group_index == -1 or group_index >= len(self.groups) - 1:
                 return
             self.groups[group_index], self.groups[group_index + 1] = self.groups[group_index + 1], self.groups[group_index]
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             new_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
             if new_iid:
@@ -845,7 +702,8 @@ class MainApp(tk.Tk):
             is_current = group.get("current", False)
             if is_current:
                 self.load_current_group_to_cells()  # Обновляем cells и drivers по новому grid перед сохранением
-            self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            #self.save_config()  # Теперь сохраняем — grid не перезапишется старым
+            save_config(self)
             self.update_camera_list()
             # Проверяем, что группа всё ещё существует
             new_group_iid = next((iid for iid in self.tree.get_children() if self.tree.item(iid)["text"] == group_name), None)
@@ -954,7 +812,8 @@ class MainApp(tk.Tk):
                     for group in self.groups:
                         group["current"] = (group["name"] == group_name)
                     self.load_current_group_to_cells()
-                    self.save_config()
+                    #self.save_config()
+                    save_config(self)
                     self.update_camera_list()
             else:
                 cam_text = self.tree.item(item)["text"]
@@ -1005,7 +864,8 @@ class MainApp(tk.Tk):
             if new_period != self.period:
                 self.period = new_period
                 self.config["period"] = self.period // 1000
-                self.save_config()
+                #self.save_config()
+                save_config(self)
             if self.update_frames_id:
                 self.after_cancel(self.update_frames_id)
             self.update_frames_id = self.after(self.period, self.update_frames)
@@ -1059,7 +919,8 @@ class MainApp(tk.Tk):
                     if None in grid:
                         free_index = grid.index(None)
                         grid[free_index] = link
-                        current_group["grid"] = self.compact_grid(grid)
+                        #current_group["grid"] = self.compact_grid(grid)
+                        current_group["grid"] = compact_grid(self, grid)
                         added = True
                         added_group_name = current_group["name"]
                         is_current = True
@@ -1071,7 +932,8 @@ class MainApp(tk.Tk):
                         if None in grid:
                             free_index = grid.index(None)
                             grid[free_index] = link
-                            group["grid"] = self.compact_grid(grid)
+                            #group["grid"] = self.compact_grid(grid)
+                            group["grid"] = compact_grid(self, grid)
                             added = True
                             added_group_name = group["name"]
                             break
@@ -1100,9 +962,11 @@ class MainApp(tk.Tk):
                         for group in self.groups:
                             group["current"] = (group["name"] == added_group_name)
                         self.load_current_group_to_cells()
-                        self.save_config()
+                        #self.save_config()
+                        save_config(self)
                         self.update_camera_list()
-                self.save_config()
+                #self.save_config()
+                save_config(self)
                 self.update_camera_list()
                 if not is_current:
                     messagebox.showinfo("Информация", f"Камера добавлена в группу '{added_group_name}'")
@@ -1140,8 +1004,10 @@ class MainApp(tk.Tk):
                 for i in range(len(grid)):
                     if grid[i] == old_link:
                         grid[i] = new_link
-                group["grid"] = self.compact_grid(grid)
-            self.save_config()
+                #group["grid"] = self.compact_grid(grid)
+                group["grid"] = compact_grid(self, grid)
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
             current_group = next((g for g in self.groups if g.get("current", False)), None)
             if current_group:
@@ -1174,7 +1040,8 @@ class MainApp(tk.Tk):
         for group in self.groups:
             grid = group.get("grid", [])
             new_grid = [l for l in grid if l != link]
-            group["grid"] = self.compact_grid(new_grid)
+            #group["grid"] = self.compact_grid(new_grid)
+            group["grid"] = compact_grid(self, new_grid)
             # Не удаляем последнюю группу, даже если она пуста
             if all(g is None for g in group["grid"]) and len(self.groups) > 1:
                 groups_to_remove.append(group)
@@ -1187,7 +1054,8 @@ class MainApp(tk.Tk):
         self.edit_camera_button.config(state=tk.DISABLED)
         self.delete_camera_button.config(state=tk.DISABLED)
         self.load_current_group_to_cells()  # Синхронизируем ячейки с новым grid
-        self.save_config()
+        #self.save_config()
+        save_config(self)
         self.update_camera_list()
         self.start_load_group_to_drivers()
 
@@ -1215,7 +1083,8 @@ class MainApp(tk.Tk):
                 messagebox.showwarning("Ошибка", "Группа с таким названием уже существует")
                 return
             current_group["name"] = new_name
-            self.save_config()
+            #self.save_config()
+            save_config(self)
             self.update_camera_list()
 
     def reload_drivers(self):
@@ -1294,22 +1163,6 @@ class MainApp(tk.Tk):
                 cell.image_label.config(image=cell.photo)
         self.update_frames_id = self.after(self.period, self.update_frames)
 
-    def save_config(self):
-        current_group = next((g for g in self.groups if g.get("current", False)), None)
-        if current_group:
-            current_grid = [cell.cam["link"] if cell.cam else None for cell in self.cells]
-            current_group["grid"] = self.compact_grid(current_grid)
-        self.config["groups"] = self.groups
-        self.config["cams"] = self.cams
-        self.config["period"] = self.period // 1000
-        try:
-            with open("config.json", "w", encoding="utf-8") as f:
-                json.dump(self.config, f, ensure_ascii=False, indent=2)
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Config saved to config.json.")
-        except Exception as e:
-            logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
-            messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
-
     def load_current_group_to_cells(self):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
         if current_group:
@@ -1338,4 +1191,3 @@ class MainApp(tk.Tk):
                     error_msg = f"[{time.strftime('%H:%M:%S')}] Error quitting driver: {str(e)}"
                     logger.error(error_msg)
         self.destroy()      
-        
