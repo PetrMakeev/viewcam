@@ -22,6 +22,15 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from config_tools import clean_config_data, compact_grid, save_config
 
+def resource_path(relative_path):
+    """ Получить путь к ресурсу для PyInstaller """
+    try:
+        # PyInstaller создает временную папку и сохраняет путь в _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 # Настройка logging в файл
 logging.basicConfig(filename='app.log', level=logging.ERROR, force=True)
 logger = logging.getLogger(__name__)
@@ -37,35 +46,35 @@ class MainApp(tk.Tk):
         self.cell_width = (screen_width - 10 - 300) // 3
         self.cell_height = (screen_height - 15) // 3
         
-        nocam_img = Image.open("resource/nocam.png")
+        nocam_img = Image.open(resource_path("resource/nocam.png"))
         nocam_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.nocam_photo = ImageTk.PhotoImage(nocam_img)
         
-        noconnect_img = Image.open("resource/noconnect.png")
+        noconnect_img = Image.open(resource_path("resource/noconnect.png"))
         noconnect_img = noconnect_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
         
-        checked_img = Image.open("resource/ui-check-box.png")
+        checked_img = Image.open(resource_path("resource/ui-check-box.png"))
         checked_img = checked_img.resize((24, 24), Image.LANCZOS)
         self.checked_photo = ImageTk.PhotoImage(checked_img)
         
-        unchecked_img = Image.open("resource/ui-check-box-uncheck.png")
+        unchecked_img = Image.open(resource_path("resource/ui-check-box-uncheck.png"))
         unchecked_img = unchecked_img.resize((24, 24), Image.LANCZOS)
         self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
         
-        arrow_up_img = Image.open("resource/arrow-up.png")
+        arrow_up_img = Image.open(resource_path("resource/arrow-up.png"))
         arrow_up_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
         self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
         
-        arrow_down_img = Image.open("resource/arrow-down.png")
+        arrow_down_img = Image.open(resource_path("resource/arrow-down.png"))
         arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
         self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
         
-        arrow_top_img = Image.open("resource/arrow-top.png")
+        arrow_top_img = Image.open(resource_path("resource/arrow-top.png"))
         arrow_top_img = arrow_top_img.resize((24, 24), Image.LANCZOS)
         self.arrow_top_photo = ImageTk.PhotoImage(arrow_top_img)
         
-        arrow_bottom_img = Image.open("resource/arrow-bottom.png")
+        arrow_bottom_img = Image.open(resource_path("resource/arrow-bottom.png"))
         arrow_bottom_img = arrow_bottom_img.resize((24, 24), Image.LANCZOS)
         self.arrow_bottom_photo = ImageTk.PhotoImage(arrow_bottom_img)
         
@@ -229,23 +238,23 @@ class MainApp(tk.Tk):
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
-        # self.frame_rate_combobox = ttk.Combobox(
-        #     controls_frame,
-        #     values=["Кадр в 1 сек", "Кадр в 2 сек", "Кадр в 4 сек"],
-        #     font=Font(family="Arial", size=11),
-        #     style="Custom.TCombobox",
-        #     state="readonly",
-        #     width=15
-        # )
-        # self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
-        # self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
+        self.frame_rate_combobox = ttk.Combobox(
+            controls_frame,
+            values=["1 сек", "2 сек", "4 сек"],
+            font=Font(family="Arial", size=11),
+            style="Custom.TCombobox",
+            state="readonly",
+            width=6
+        )
+        self.frame_rate_combobox.set(f"{self.period // 1000} сек")
+        #self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
         self.open_map_button = Button(
             controls_frame,
-            text="Открыть карту",
+            text="Карта",
             font=Font(family="Arial", size=11),
             command=open_ufanet_map,
-            width=14
+            width=8
         )
         self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -291,6 +300,10 @@ class MainApp(tk.Tk):
         self.update_frames()
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Установка иконки окна
+        self.iconbitmap(resource_path("resource/eye.ico"))
+
 
     def show_tooltip(self, event, button_key):
         if self.tooltip_texts[button_key] == '':

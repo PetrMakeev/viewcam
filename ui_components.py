@@ -1,9 +1,27 @@
+import sys
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox, Toplevel, Label, Entry, Button
 from tkinter.font import Font
 from PIL import Image, ImageTk
+import subprocess  # Добавлен для управления процессами Chrome
+import logging  # Добавлен для логирования
+import time
 
 import webbrowser  # Добавлен импорт для работы с браузером
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+def resource_path(relative_path):
+    """ Получить путь к ресурсу для PyInstaller """
+    try:
+        # PyInstaller создает временную папку и сохраняет путь в _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 
 class CameraDialog(Toplevel):
     def __init__(self, parent=None, street="", link="", title="Добавить камеру", is_group=False):
@@ -22,7 +40,7 @@ class CameraDialog(Toplevel):
         
         self.font = Font(family="Arial", size=11)
         
-        paste_img = Image.open("resource/paste.png")
+        paste_img = Image.open(resource_path("resource/paste.png"))
         paste_img = paste_img.resize((24, 24), Image.LANCZOS)
         self.paste_photo = ImageTk.PhotoImage(paste_img)
         
@@ -126,10 +144,17 @@ class CellFrame(tk.Frame):
             self.photo = self.winfo_toplevel().noconnect_photo
             self.image_label.config(image=self.photo)
 
-# Добавленная функция для открытия карты в Google Chrome
+# Функция для открытия карты в новом окне Google Chrome
 def open_ufanet_map():
     try:
-        chrome_path = r'C:\Program Files\Google\Chrome\Application\chrome.exe %s'
-        webbrowser.get(chrome_path).open('http://maps.ufanet.ru/orenburg#')
+        chrome_path = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
+        url = 'http://maps.ufanet.ru/orenburg#'
+        if not os.path.exists(chrome_path):
+            logger.error(f"[{time.strftime('%H:%M:%S')}] Chrome not found at {chrome_path}")
+            messagebox.showerror("Ошибка", "Google Chrome не найден по пути: " + chrome_path)
+            return
+        subprocess.Popen([chrome_path, '--new-window', url])
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Opened new Chrome window with URL: {url}")
     except Exception as e:
+        logger.error(f"[{time.strftime('%H:%M:%S')}] Failed to open map: {str(e)}")
         messagebox.showerror("Ошибка", f"Не удалось открыть карту: {str(e)}")

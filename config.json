@@ -130,15 +130,15 @@
       "grid": [
         "http://maps.ufanet.ru/orenburg#001-999-8-391",
         "http://maps.ufanet.ru/orenburg#1508408924",
-        "http://maps.ufanet.ru/orenburg#1682492709XNQ76",
         "http://maps.ufanet.ru/orenburg#1688621139POM320",
+        "http://maps.ufanet.ru/orenburg#1682492709XNQ76",
         "http://maps.ufanet.ru/orenburg#001-999-8-400",
         "http://maps.ufanet.ru/orenburg#1581078823GZM248",
         "http://maps.ufanet.ru/orenburg#1582875928SNC916",
         "http://maps.ufanet.ru/orenburg#1716193328PFM85",
         "http://maps.ufanet.ru/orenburg#1689135915DFD23"
       ],
-      "current": false
+      "current": true
     },
     {
       "name": "Новая группа 2025-10-15",
@@ -168,7 +168,7 @@
         null,
         null
       ],
-      "current": true
+      "current": false
     }
   ],
   "period": 1
