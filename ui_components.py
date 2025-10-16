@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, Toplevel, Label, Entry, Button
 from tkinter.font import Font
 from PIL import Image, ImageTk
 
+import webbrowser  # Добавлен импорт для работы с браузером
+
 class CameraDialog(Toplevel):
     def __init__(self, parent=None, street="", link="", title="Добавить камеру", is_group=False):
         super().__init__(parent)
@@ -123,27 +125,11 @@ class CellFrame(tk.Frame):
             self.name_label.config(text=self.cam["street"])
             self.photo = self.winfo_toplevel().noconnect_photo
             self.image_label.config(image=self.photo)
-    def __init__(self, parent, index):
-        super().__init__(parent)
-        self.index = index
-        self.cam = None
-        
-        self.name_label = Label(self, text="", font=Font(family="Arial", size=11), height=1)
-        self.name_label.pack(fill=tk.X)
-        
-        self.image_label = Label(self)
-        self.image_label.pack(expand=True, fill=tk.BOTH)
-        self.image_label.bind("<Button-1>", lambda event: self.winfo_toplevel().on_cell_click(self.index))
-        self.image_label.bind("<Double-Button-1>", lambda event: self.winfo_toplevel().open_modal(self.index))
-        
-        self.update_display()
 
-    def update_display(self):
-        if not self.cam:
-            self.name_label.config(text="")
-            self.photo = self.winfo_toplevel().nocam_photo
-            self.image_label.config(image=self.photo)
-        else:
-            self.name_label.config(text=self.cam["street"])
-            self.photo = self.winfo_toplevel().noconnect_photo
-            self.image_label.config(image=self.photo)
+# Добавленная функция для открытия карты в Google Chrome
+def open_ufanet_map():
+    try:
+        chrome_path = r'C:\Program Files\Google\Chrome\Application\chrome.exe %s'
+        webbrowser.get(chrome_path).open('http://maps.ufanet.ru/orenburg#')
+    except Exception as e:
+        messagebox.showerror("Ошибка", f"Не удалось открыть карту: {str(e)}")

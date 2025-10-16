@@ -15,8 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
-from ui_components import CellFrame
-from ui_components import CameraDialog
+from ui_components import CellFrame, CameraDialog, open_ufanet_map
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -177,7 +176,7 @@ class MainApp(tk.Tk):
             text="Добавить камеру",
             font=Font(family="Arial", size=11),
             command=self.add_camera,
-            width=20
+            width=14
         )
         self.add_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -186,7 +185,7 @@ class MainApp(tk.Tk):
             text="Изменить камеру",
             font=Font(family="Arial", size=11),
             command=self.edit_camera,
-            width=20,
+            width=14,
             state=tk.DISABLED
         )
         self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
@@ -196,7 +195,7 @@ class MainApp(tk.Tk):
             text="Удалить камеру",
             font=Font(family="Arial", size=11),
             command=self.delete_camera,
-            width=20,
+            width=14,
             state=tk.DISABLED
         )
         self.delete_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
@@ -206,7 +205,7 @@ class MainApp(tk.Tk):
             text="Изменить группу",
             font=Font(family="Arial", size=11),
             command=self.edit_group,
-            width=20
+            width=14
         )
         self.edit_group_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -215,7 +214,7 @@ class MainApp(tk.Tk):
             text="Перезагрузить",
             font=Font(family="Arial", size=11),
             command=self.reload_drivers,
-            width=20
+            width=14
         )
         self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
         
@@ -225,28 +224,28 @@ class MainApp(tk.Tk):
             font=Font(family="Arial", size=11),
             style="Custom.TCombobox",
             state="readonly",
-            width=15
+            width=9
         )
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
-        self.frame_rate_combobox = ttk.Combobox(
-            controls_frame,
-            values=["Кадр в 1 сек", "Кадр в 2 сек", "Кадр в 4 сек"],
-            font=Font(family="Arial", size=11),
-            style="Custom.TCombobox",
-            state="readonly",
-            width=15
-        )
-        self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
-        self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
+        # self.frame_rate_combobox = ttk.Combobox(
+        #     controls_frame,
+        #     values=["Кадр в 1 сек", "Кадр в 2 сек", "Кадр в 4 сек"],
+        #     font=Font(family="Arial", size=11),
+        #     style="Custom.TCombobox",
+        #     state="readonly",
+        #     width=15
+        # )
+        # self.frame_rate_combobox.set(f"Кадр в {self.period // 1000} сек")
+        # self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
         self.open_map_button = Button(
             controls_frame,
             text="Открыть карту",
             font=Font(family="Arial", size=11),
-            command=lambda: None,
-            width=25
+            command=open_ufanet_map,
+            width=14
         )
         self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
         
