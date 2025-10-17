@@ -51,7 +51,7 @@ class MainApp(tk.Tk):
         self.nocam_photo = ImageTk.PhotoImage(nocam_img)
         
         noconnect_img = Image.open(resource_path("resource/noconnect.png"))
-        noconnect_img = noconnect_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+        noconnect_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
         self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
         
         checked_img = Image.open(resource_path("resource/ui-check-box.png"))
@@ -238,17 +238,6 @@ class MainApp(tk.Tk):
         self.grid_combobox.set("Сетка 3х3")
         self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
-        self.frame_rate_combobox = ttk.Combobox(
-            controls_frame,
-            values=["1 сек", "2 сек", "4 сек"],
-            font=Font(family="Arial", size=11),
-            style="Custom.TCombobox",
-            state="readonly",
-            width=6
-        )
-        self.frame_rate_combobox.set(f"{self.period // 1000} сек")
-        #self.frame_rate_combobox.pack(side=tk.LEFT, padx=5, pady=3)
-        
         self.open_map_button = Button(
             controls_frame,
             text="Карта",
@@ -303,7 +292,31 @@ class MainApp(tk.Tk):
         
         # Установка иконки окна
         self.iconbitmap(resource_path("resource/eye.ico"))
-
+        
+    def on_resize(self, event):
+            # Debounce: отменяем предыдущий вызов и планируем новый
+            if self.resize_id:
+                self.after_cancel(self.resize_id)
+            self.resize_id = self.after(200, lambda: self._delayed_on_resize(event))
+            
+    def _delayed_on_resize(self, event):
+        self.resize_id = None
+        screen_width = self.winfo_width()
+        screen_height = self.winfo_height()
+        new_cell_width = (screen_width - 10 - 300) // 3
+        new_cell_height = (screen_height - 15) // 3
+        if new_cell_width != self.prev_cell_width or new_cell_height != self.prev_cell_height:
+            self.cell_width = new_cell_width
+            self.cell_height = new_cell_height
+            self.prev_cell_width = new_cell_width
+            self.prev_cell_height = new_cell_height
+            # Обновляем конфигурацию ячеек
+            for cell in self.cells:
+                cell.config(width=self.cell_width, height=self.cell_height)
+            # Отменяем текущий update и планируем новый
+            if self.update_frames_id:
+                self.after_cancel(self.update_frames_id)
+            self.update_frames()
 
     def show_tooltip(self, event, button_key):
         if self.tooltip_texts[button_key] == '':
@@ -1103,6 +1116,7 @@ class MainApp(tk.Tk):
         self.start_load_group_to_drivers()
 
     def update_frames(self):
+        logger = logging.getLogger(__name__)
         for cell in self.cells:
             if not self.full_update and cell.index != self.modal_cell_index:
                 continue
@@ -1130,50 +1144,65 @@ class MainApp(tk.Tk):
                     iframe = element.find_element(By.TAG_NAME, "iframe")
                     driver.switch_to.frame(iframe)
                     body = driver.find_element(By.TAG_NAME, "body")
-                    if body.size['height'] == 0:
-                        driver.execute_script("document.body.style.height = '300px';")
-                        driver.execute_script("document.body.style.display = 'block';")
                     screenshot_bytes = body.screenshot_as_png
                 except:
                     driver.switch_to.default_content()
-                    style = element.get_attribute('style')
-                    height_match = re.search(r'height:\s*(\d+)px', style, re.IGNORECASE)
-                    height = int(height_match.group(1)) if height_match else 300
-                    if element.size['height'] == 0:
-                        driver.execute_script(f"arguments[0].style.height = '{height}px';", element)
-                        driver.execute_script("arguments[0].style.display = 'block';", element)
                     screenshot_bytes = element.screenshot_as_png
                 
                 if screenshot_bytes:
                     pil_image = Image.open(io.BytesIO(screenshot_bytes))
                     img_array = np.array(pil_image)
                     height, width, _ = img_array.shape
-                    left = 0
-                    for x in range(width):
-                        if np.any(img_array[:, x] != [0, 0, 0]):
-                            left = x
-                            break
-                    right = width
-                    for x in range(width - 1, -1, -1):
-                        if np.any(img_array[:, x] != [0, 0, 0]):
-                            right = x + 1
-                            break
-                    cropped_image = pil_image.crop((left, 0, right, height))
-                    self.original_pil_images[cell.index] = cropped_image.copy()
-                    resized_small = cropped_image.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+                    
+                    # Обрезка слева и справа
+                    crop_fraction = 17 / 235
+                    left_crop = int(width * crop_fraction)
+                    right_crop = int(width * crop_fraction)
+                    cropped_image = pil_image.crop((left_crop, 0, width - right_crop, height))
+                    
+                    # Получаем реальные размеры ячейки
+                    target_width = cell.image_label.winfo_width()
+                    target_height = cell.image_label.winfo_height()
+                    if target_width <= 1 or target_height <= 1:
+                        target_width = self.cell_width
+                        target_height = self.cell_height - 30  # Вычет на name_label
+                    
+                    # Растяжение до размера ячейки с искажением
+                    resized_small = cropped_image.resize((target_width, target_height), Image.LANCZOS)
                     cell.photo = ImageTk.PhotoImage(resized_small)
                     cell.image_label.config(image=cell.photo)
+                    
+                    self.original_pil_images[cell.index] = cropped_image.copy()
+                    
                     if self.modal_cell_index == cell.index and self.modal_image_label:
-                        resized_modal = cropped_image.resize(self.modal_image_size, Image.LANCZOS)
+                        modal_width = self.modal_image_size[0] if isinstance(self.modal_image_size, tuple) else self.modal_image_size
+                        modal_height = self.modal_image_size[1] if isinstance(self.modal_image_size, tuple) else self.modal_image_size
+                        resized_modal = cropped_image.resize((modal_width, modal_height), Image.LANCZOS)
                         self.modal_photo = ImageTk.PhotoImage(resized_modal)
                         self.modal_image_label.config(image=self.modal_photo)
+                else:
+                    logger.warning(f"[{time.strftime('%H:%M:%S')}] Cell {cell.index}: No screenshot bytes")
                 driver.switch_to.default_content()
             except Exception as e:
-                error_msg = f"[{time.strftime('%H:%M:%S')}] Error updating frame for cell {cell.index}: {str(e)}"
-                logger.error(error_msg)
+                logger.error(f"[{time.strftime('%H:%M:%S')}] Error updating frame for cell {cell.index}: {str(e)}")
                 cell.photo = self.noconnect_photo
                 cell.image_label.config(image=cell.photo)
         self.update_frames_id = self.after(self.period, self.update_frames)
+
+    def _update_label_size(self, cell):
+        import logging
+        logger = logging.getLogger(__name__)
+        label_width = cell.image_label.winfo_width()
+        label_height = cell.image_label.winfo_height()
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Cell {cell.index}: Label size after update {label_width}x{label_height}")
+        if label_width > 1 and label_height > 1 and cell.photo and cell.index < len(self.original_pil_images) and self.original_pil_images[cell.index] is not None:
+            # Используем сохранённое обрезанное изображение для пересчёта
+            pil_image = self.original_pil_images[cell.index]
+            resized = pil_image.resize((label_width, label_height), Image.LANCZOS)
+            cell.photo = ImageTk.PhotoImage(resized)
+            cell.image_label.config(image=cell.photo)
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Cell {cell.index}: Resized to match label {label_width}x{label_height}")
+
 
     def load_current_group_to_cells(self):
         current_group = next((g for g in self.groups if g.get("current", False)), None)
