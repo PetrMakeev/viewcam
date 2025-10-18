@@ -86,7 +86,8 @@ class MainApp(tk.Tk):
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         
-
+        # прячем окно авторизации
+        self.intro_window.withdraw()
         
     def on_resize(self, event):
             # Debounce: отменяем предыдущий вызов и планируем новый
