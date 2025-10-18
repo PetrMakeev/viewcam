@@ -127,7 +127,7 @@ class CellFrame(tk.Frame):
         self.name_label = Label(self, text="", font=Font(family="Arial", size=11), height=1)
         self.name_label.pack(fill=tk.X)
         
-        self.image_label = Label(self, bg='black', anchor='center')
+        self.image_label = Label(self, anchor='center')
         self.image_label.pack(expand=True, fill=tk.BOTH)
         self.image_label.bind("<Button-1>", lambda event: self.winfo_toplevel().on_cell_click(self.index))
         self.image_label.bind("<Double-Button-1>", lambda event: self.winfo_toplevel().open_modal(self.index))
