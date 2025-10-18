@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox, Toplevel, Label, Entry, Button
 from tkinter.font import Font
 import hashlib
 from datetime import datetime, timedelta
+import base64
 
 # from main_app import MainApp
 
@@ -22,6 +23,18 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+def encrypt(text, key='orenburg_secret'):
+    """Простое шифрование XOR + base64"""
+    key = key * (len(text) // len(key) + 1)
+    encrypted = ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(text, key))
+    return base64.b64encode(encrypted.encode('utf-8')).decode('utf-8')
+
+def decrypt(encrypted, key='orenburg_secret'):
+    """Дешифровка XOR + base64"""
+    encrypted = base64.b64decode(encrypted).decode('utf-8')
+    key = key * (len(encrypted) // len(key) + 1)
+    return ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(encrypted, key))
 
 class ChangePasswordWindow(tk.Toplevel):
     def __init__(self, parent):
@@ -140,8 +153,15 @@ class ChangePasswordWindow(tk.Toplevel):
             return
 
         # Сохранение паролей, если они изменились
-        self.parent.config["admin_password"] = admin_password_hash
-        self.parent.config["user_password"] = user_password_hash
+        if admin_password_hash != current_admin_hash:
+            self.parent.config["admin_password"] = admin_password_hash
+        if user_password_hash != current_user_hash:
+            self.parent.config["user_password"] = user_password_hash
+            # Обновляем timestamp для user_password, если он изменён
+            timestamp_str = datetime.now().isoformat()
+            self.parent.config["user_password_timestamp"] = encrypt(timestamp_str)
+            logger.info(f"[{time.strftime('%H:%M:%S')}] User password changed, timestamp updated.")
+
         self.parent.save_config()
         messagebox.showinfo("Успех", "Пароли успешно сохранены. Пожалуйста, войдите заново.")
         self.on_cancel()
@@ -208,7 +228,7 @@ class IntroWindow(tk.Toplevel):
                 config = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.info(f"[{time.strftime('%H:%M:%S')}] config.json not found or corrupted: {str(e)}. Creating default config.")
-            config = {"cams": [], "groups": [], "period": 1, "admin_password": None, "user_password": None, "login_attempts": []}
+            config = {"cams": [], "groups": [], "period": 1, "admin_password": None, "user_password": None, "login_attempts": [], "user_password_timestamp": None}
         return config
 
     def save_config(self):
@@ -274,13 +294,32 @@ class IntroWindow(tk.Toplevel):
                 return
 
             if self.hash_password(password) == user_password_hash:
+                # Проверка на просрочку пароля
+                current_time = datetime.now()
+                if current_time.hour >= 12:
+                    try:
+                        timestamp_enc = self.config.get("user_password_timestamp")
+                        if not timestamp_enc:
+                            raise ValueError("No timestamp")
+                        timestamp_str = decrypt(timestamp_enc)
+                        last_change = datetime.fromisoformat(timestamp_str)
+                        if last_change.date() < current_time.date() or (last_change.date() == current_time.date() and last_change.hour < 12):
+                            raise ValueError("Expired")
+                    except Exception as e:
+                        logger.warning(f"[{time.strftime('%H:%M:%S')}] User password expired or invalid timestamp: {str(e)}")
+                        messagebox.showerror("Ошибка", "Пароль пользователя просрочен, обратитесь к администратору.")
+                        if self.login_attempts_count >= 3:
+                            self.config.setdefault("login_attempts", []).append({"user": login, "timestamp": now, "success": False})
+                            self.save_config()
+                        return
+
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Successful user login")
                 # Показать сообщение "Вход выполнен. Подключение ..."
                 success_label = Label(self.main_frame, text="Вход выполнен. Подключение ...", font=("Arial", 12, "bold"), fg="green")
                 success_label.pack(before=self.button_frame, pady=5)
                 self.update()  # Обновить интерфейс для отображения надписи
                 # запускаем настройку основного окна
-                self.parent.setup_app()
+                self.overrideredirect()
                 # Показать основное приложение
                 self.parent.deiconify()  # Показываем MainApp
             else:
@@ -312,4 +351,3 @@ class IntroWindow(tk.Toplevel):
         """Завершение приложения при нажатии на Отмена"""
         super().destroy()  # Вызываем стандартное закрытие Toplevel
         self.parent.destroy()  # Закрываем основное окно
-
