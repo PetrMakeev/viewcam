@@ -331,3 +331,206 @@ def save_config(self):
         logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
         messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
     
+# отрисовка формы
+def ui_main_render(self):
+    self.title("Видеонаблюдение")
+    screen_width = self.winfo_screenwidth()
+    screen_height = self.winfo_screenheight() - 50
+    self.geometry(f"{screen_width - 10}x{screen_height - 15}+0+0")
+    
+    self.cell_width = (screen_width - 10 - 300) // 3
+    self.cell_height = (screen_height - 15) // 3
+    
+    nocam_img = Image.open(resource_path("resource/nocam.png"))
+    nocam_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+    self.nocam_photo = ImageTk.PhotoImage(nocam_img)
+    
+    noconnect_img = Image.open(resource_path("resource/noconnect.png"))
+    noconnect_img = nocam_img.resize((self.cell_width, self.cell_height), Image.LANCZOS)
+    self.noconnect_photo = ImageTk.PhotoImage(noconnect_img)
+    
+    checked_img = Image.open(resource_path("resource/ui-check-box.png"))
+    checked_img = checked_img.resize((24, 24), Image.LANCZOS)
+    self.checked_photo = ImageTk.PhotoImage(checked_img)
+    
+    unchecked_img = Image.open(resource_path("resource/ui-check-box-uncheck.png"))
+    unchecked_img = unchecked_img.resize((24, 24), Image.LANCZOS)
+    self.unchecked_photo = ImageTk.PhotoImage(unchecked_img)
+    
+    arrow_up_img = Image.open(resource_path("resource/arrow-up.png"))
+    arrow_up_img = arrow_up_img.resize((24, 24), Image.LANCZOS)
+    self.arrow_up_photo = ImageTk.PhotoImage(arrow_up_img)
+    
+    arrow_down_img = Image.open(resource_path("resource/arrow-down.png"))
+    arrow_down_img = arrow_down_img.resize((24, 24), Image.LANCZOS)
+    self.arrow_down_photo = ImageTk.PhotoImage(arrow_down_img)
+    
+    arrow_top_img = Image.open(resource_path("resource/arrow-top.png"))
+    arrow_top_img = arrow_top_img.resize((24, 24), Image.LANCZOS)
+    self.arrow_top_photo = ImageTk.PhotoImage(arrow_top_img)
+    
+    arrow_bottom_img = Image.open(resource_path("resource/arrow-bottom.png"))
+    arrow_bottom_img = arrow_bottom_img.resize((24, 24), Image.LANCZOS)
+    self.arrow_bottom_photo = ImageTk.PhotoImage(arrow_bottom_img)
+    
+    # Загрузка и очистка конфигурации
+    self.config = clean_config_data(self)
+    self.cams = self.config.get("cams", [])
+    self.groups = self.config.get("groups", [])
+    self.period = self.config.get("period", 1) * 1000
+    if self.period not in [1000, 2000, 4000]:
+        logger.warning(f"[{time.strftime('%H:%M:%S')}] Invalid period {self.period // 1000} sec in config. Setting to 1 sec.")
+        self.period = 1000
+    self.original_period = self.period
+    self.selected_camera = None
+    self.drivers = []
+    self.update_frames_id = None
+    self.is_editing_structure = False
+    self.tooltip = None
+    self.tooltip_texts = {
+        'move_top': '',
+        'move_up': '',
+        'move_down': '',
+        'move_bottom': ''
+    }
+    self.full_update = True
+    self.modal_window = None
+    self.modal_name_label = None
+    self.modal_image_label = None
+    self.modal_photo = None
+    self.modal_image_size = None
+    self.modal_cell_index = None
+    self.original_pil_images = [None] * 9
+    
+    style = ttk.Style()
+    style.configure("Custom.TCombobox", padding=(5, 2, 5, 2))
+    
+    left_frame = tk.Frame(self, width=300)
+    left_frame.pack(side=tk.LEFT, fill=tk.Y)
+    
+    self.tree = ttk.Treeview(left_frame, show="tree")
+    self.tree.pack(expand=True, fill=tk.BOTH, padx=3, pady=3)
+    self.update_camera_list()
+    self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+    
+    self.tree_buttons_frame = tk.Frame(left_frame)
+    self.tree_buttons_frame.pack(fill=tk.X, padx=3, pady=3)
+    self.tree_buttons_frame.pack_forget()
+    
+    self.move_top_button = Button(
+        self.tree_buttons_frame,
+        image=self.arrow_top_photo,
+        command=self.move_top,
+        state=tk.DISABLED
+    )
+    self.move_top_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+    self.move_top_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_top'))
+    self.move_top_button.bind("<Leave>", self.hide_tooltip)
+    
+    self.arrow_up_button = Button(
+        self.tree_buttons_frame,
+        image=self.arrow_up_photo,
+        command=self.move_up,
+        state=tk.DISABLED
+    )
+    self.arrow_up_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 5))
+    self.arrow_up_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_up'))
+    self.arrow_up_button.bind("<Leave>", self.hide_tooltip)
+    
+    self.arrow_down_button = Button(
+        self.tree_buttons_frame,
+        image=self.arrow_down_photo,
+        command=self.move_down,
+        state=tk.DISABLED
+    )
+    self.arrow_down_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 5))
+    self.arrow_down_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_down'))
+    self.arrow_down_button.bind("<Leave>", self.hide_tooltip)
+    
+    self.move_bottom_button = Button(
+        self.tree_buttons_frame,
+        image=self.arrow_bottom_photo,
+        command=self.move_bottom,
+        state=tk.DISABLED
+    )
+    self.move_bottom_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+    self.move_bottom_button.bind("<Enter>", lambda event: self.show_tooltip(event, 'move_bottom'))
+    self.move_bottom_button.bind("<Leave>", self.hide_tooltip)
+    
+    self.edit_structure_button = Button(
+        left_frame,
+        text="Изменить\nструктуру",
+        font=Font(family="Arial", size=11),
+        command=self.toggle_structure_edit,
+        width=20
+    )
+    self.edit_structure_button.pack(fill=tk.X, padx=3, pady=3)
+    
+    self.right_frame = tk.Frame(self)
+    self.right_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+    
+    self.top_frame = tk.Frame(self.right_frame, relief="sunken", borderwidth=2)
+    self.top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+    
+    controls_frame = tk.Frame(self.top_frame)
+    controls_frame.pack(anchor="center")
+    
+    self.add_camera_button = Button(
+        controls_frame,
+        text="Добавить камеру",
+        font=Font(family="Arial", size=11),
+        command=self.add_camera,
+        width=14
+    )
+    self.add_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    self.edit_camera_button = Button(
+        controls_frame,
+        text="Изменить камеру",
+        font=Font(family="Arial", size=11),
+        command=self.edit_camera,
+        width=14,
+        state=tk.DISABLED
+    )
+    self.edit_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    self.delete_camera_button = Button(
+        controls_frame,
+        text="Удалить камеру",
+        font=Font(family="Arial", size=11),
+        command=self.delete_camera,
+        width=14,
+        state=tk.DISABLED
+    )
+    self.delete_camera_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    self.edit_group_button = Button(
+        controls_frame,
+        text="Изменить группу",
+        font=Font(family="Arial", size=11),
+        command=self.edit_group,
+        width=14
+    )
+    self.edit_group_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    self.reload_button = Button(
+        controls_frame,
+        text="Перезагрузить",
+        font=Font(family="Arial", size=11),
+        command=self.reload_drivers,
+        width=14
+    )
+    self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    
+    self.open_map_button = Button(
+        controls_frame,
+        text="Карта",
+        font=Font(family="Arial", size=11),
+        command=open_ufanet_map,
+        width=8
+    )
+    self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
+    
+    self.camera_frame = tk.Frame(self.right_frame, relief="sunken", borderwidth=2)
+    self.camera_frame.pack(expand=True, fill=tk.BOTH)    
