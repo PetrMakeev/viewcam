@@ -9,7 +9,7 @@ from tkinter.font import Font
 import hashlib
 from datetime import datetime, timedelta
 
-from main_app import MainApp
+# from main_app import MainApp
 
 # Настройка логирования
 logging.basicConfig(filename='app.log', level=logging.INFO, force=True)
@@ -80,7 +80,9 @@ class ChangePasswordWindow(tk.Toplevel):
         button_frame = tk.Frame(main_frame)
         button_frame.pack(pady=15)
         Button(button_frame, text="Сохранить", font=self.font, command=self.save_passwords, width=10).pack(side=tk.LEFT, padx=5)
-        Button(button_frame, text="Отмена", font=self.font, command=self.destroy, width=10).pack(side=tk.LEFT, padx=5)
+        Button(button_frame, text="Отмена", font=self.font, command=self.on_cancel, width=10).pack(side=tk.LEFT, padx=5)
+        
+        self.protocol("WM_DELETE_WINDOW", self.on_cancel)   
 
     def check_passwords(self, event=None):
         """Проверка совпадения паролей в реальном времени"""
@@ -142,12 +144,13 @@ class ChangePasswordWindow(tk.Toplevel):
         self.parent.config["user_password"] = user_password_hash
         self.parent.save_config()
         messagebox.showinfo("Успех", "Пароли успешно сохранены. Пожалуйста, войдите заново.")
-        self.destroy()
+        self.on_cancel()
 
-    def destroy(self):
+    def on_cancel(self):
         """Завершение приложения при закрытии окна"""
         super().destroy()
-        self.parent.destroy()  # Закрываем главное окно приложения
+        self.parent.destroy()  # Закрываем окно авторизации
+        self.parent.parent.destroy()  # Закрываем главное окно приложения
 
 class IntroWindow(tk.Toplevel):
     def __init__(self, parent):
@@ -187,13 +190,15 @@ class IntroWindow(tk.Toplevel):
         self.button_frame = tk.Frame(self.main_frame)
         self.button_frame.pack(pady=10)
         Button(self.button_frame, text="Вход", font=self.font, command=self.on_ok).pack(side=tk.LEFT, padx=5)
-        Button(self.button_frame, text="Отмена", font=self.font, command=self.destroy).pack(side=tk.LEFT, padx=5)
+        Button(self.button_frame, text="Отмена", font=self.font, command=self.on_cancel).pack(side=tk.LEFT, padx=5)
         
         # Иконка окна
         try:
             self.iconbitmap(resource_path("resource/eye.ico"))
         except:
             pass  # Если иконка не найдена, игнорируем
+        
+        self.protocol("WM_DELETE_WINDOW", self.on_cancel)        
 
         self.config = self.load_config()
 
@@ -265,7 +270,7 @@ class IntroWindow(tk.Toplevel):
                 if self.login_attempts_count >= 3:
                     self.config.setdefault("login_attempts", []).append({"user": login, "timestamp": now, "success": False})
                     self.save_config()
-                self.destroy()
+                self.on_cancel()
                 return
 
             if self.hash_password(password) == user_password_hash:
@@ -274,6 +279,8 @@ class IntroWindow(tk.Toplevel):
                 success_label = Label(self.main_frame, text="Вход выполнен. Подключение ...", font=("Arial", 12, "bold"), fg="green")
                 success_label.pack(before=self.button_frame, pady=5)
                 self.update()  # Обновить интерфейс для отображения надписи
+                # запускаем настройку основного окна
+                self.parent.setup_app()
                 # Показать основное приложение
                 self.parent.deiconify()  # Показываем MainApp
             else:
@@ -303,4 +310,6 @@ class IntroWindow(tk.Toplevel):
 
     def on_cancel(self):
         """Завершение приложения при нажатии на Отмена"""
-        self.destroy()
+        super().destroy()  # Вызываем стандартное закрытие Toplevel
+        self.parent.destroy()  # Закрываем основное окно
+

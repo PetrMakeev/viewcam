@@ -19,6 +19,7 @@ from ui_components import CellFrame, CameraDialog, clean_config_data, open_ufane
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from auth import IntroWindow  # Добавлен импорт для IntroWindow
 
 
 # Настройка logging в файл
@@ -29,6 +30,9 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        # Установка иконки окна
+        self.iconbitmap(resource_path("resource/eye.ico"))
+        
         # Загрузка оригинальных изображений заглушек
         self.original_nocam_image = Image.open(resource_path("resource/nocam.png"))
         self.original_noconnect_image = Image.open(resource_path("resource/noconnect.png"))
@@ -37,7 +41,11 @@ class MainApp(tk.Tk):
         self.noconnect_photo = ImageTk.PhotoImage(self.original_noconnect_image)
 
         ui_main_render(self)
+        
+        self.withdraw()  # Скрываем основное окно до авторизации
+        self.intro_window = IntroWindow(self)
                 
+    def setup_app(self):
         self.cells = []
         for i in range(3):
             for j in range(3):
@@ -78,8 +86,7 @@ class MainApp(tk.Tk):
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        # Установка иконки окна
-        self.iconbitmap(resource_path("resource/eye.ico"))
+
         
     def on_resize(self, event):
             # Debounce: отменяем предыдущий вызов и планируем новый
