@@ -226,16 +226,6 @@ class MainApp(tk.Tk):
         )
         self.reload_button.pack(side=tk.LEFT, padx=5, pady=3)
         
-        self.grid_combobox = ttk.Combobox(
-            controls_frame,
-            values=["Сетка 2х2", "Сетка 3х3"],
-            font=Font(family="Arial", size=11),
-            style="Custom.TCombobox",
-            state="readonly",
-            width=9
-        )
-        self.grid_combobox.set("Сетка 3х3")
-        self.grid_combobox.pack(side=tk.LEFT, padx=5, pady=3)
         
         self.open_map_button = Button(
             controls_frame,
