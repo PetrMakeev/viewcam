@@ -29,6 +29,13 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        # Загрузка оригинальных изображений заглушек
+        self.original_nocam_image = Image.open(resource_path("resource/nocam.png"))
+        self.original_noconnect_image = Image.open(resource_path("resource/noconnect.png"))
+        # Инициальные PhotoImage (без ресайза или с дефолтным, но update_frames обработает)
+        self.nocam_photo = ImageTk.PhotoImage(self.original_nocam_image)
+        self.noconnect_photo = ImageTk.PhotoImage(self.original_noconnect_image)
+
         ui_main_render(self)
                 
         self.cells = []
@@ -629,19 +636,48 @@ class MainApp(tk.Tk):
             if not self.full_update and cell.index != self.modal_cell_index:
                 continue
             if not cell.cam or not self.drivers[cell.index]:
-                cell.photo = self.nocam_photo if not cell.cam else self.noconnect_photo
+                # Масштабирование заглушек аналогично кадрам
+                pil_image = self.original_nocam_image if not cell.cam else self.original_noconnect_image
+                # Получаем реальные размеры ячейки (аналогично реальным кадрам)
+                target_width = cell.image_label.winfo_width()
+                target_height = cell.image_label.winfo_height()
+                if target_width <= 1 or target_height <= 1:
+                    target_width = self.cell_width
+                    target_height = self.cell_height - 30  # Вычет на name_label
+                resized = pil_image.resize((target_width, target_height), Image.LANCZOS)
+                cell.photo = ImageTk.PhotoImage(resized)
                 cell.image_label.config(image=cell.photo)
+                # Сохраняем оригинал для возможного ресайза в _update_label_size
+                self.original_pil_images[cell.index] = pil_image
                 continue
             driver = self.drivers[cell.index]
             try:
                 if driver.current_url == 'about:blank':
-                    cell.photo = self.nocam_photo
+                    # Масштабирование заглушки для blank
+                    pil_image = self.original_nocam_image
+                    target_width = cell.image_label.winfo_width()
+                    target_height = cell.image_label.winfo_height()
+                    if target_width <= 1 or target_height <= 1:
+                        target_width = self.cell_width
+                        target_height = self.cell_height - 30
+                    resized = pil_image.resize((target_width, target_height), Image.LANCZOS)
+                    cell.photo = ImageTk.PhotoImage(resized)
                     cell.image_label.config(image=cell.photo)
+                    self.original_pil_images[cell.index] = pil_image
                     continue
             except Exception as e:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error checking url for cell {cell.index}: {str(e)}")
-                cell.photo = self.noconnect_photo
+                # Масштабирование заглушки для ошибки
+                pil_image = self.original_noconnect_image
+                target_width = cell.image_label.winfo_width()
+                target_height = cell.image_label.winfo_height()
+                if target_width <= 1 or target_height <= 1:
+                    target_width = self.cell_width
+                    target_height = self.cell_height - 30
+                resized = pil_image.resize((target_width, target_height), Image.LANCZOS)
+                cell.photo = ImageTk.PhotoImage(resized)
                 cell.image_label.config(image=cell.photo)
+                self.original_pil_images[cell.index] = pil_image
                 continue
             try:
                 element = WebDriverWait(driver, 5).until(
@@ -693,9 +729,19 @@ class MainApp(tk.Tk):
                 driver.switch_to.default_content()
             except Exception as e:
                 logger.error(f"[{time.strftime('%H:%M:%S')}] Error updating frame for cell {cell.index}: {str(e)}")
-                cell.photo = self.noconnect_photo
+                # Масштабирование заглушки для исключения
+                pil_image = self.original_noconnect_image
+                target_width = cell.image_label.winfo_width()
+                target_height = cell.image_label.winfo_height()
+                if target_width <= 1 or target_height <= 1:
+                    target_width = self.cell_width
+                    target_height = self.cell_height - 30
+                resized = pil_image.resize((target_width, target_height), Image.LANCZOS)
+                cell.photo = ImageTk.PhotoImage(resized)
                 cell.image_label.config(image=cell.photo)
+                self.original_pil_images[cell.index] = pil_image
         self.update_frames_id = self.after(self.period, self.update_frames)
+
 
     def _update_label_size(self, cell):
         import logging

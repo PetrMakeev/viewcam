@@ -123,7 +123,7 @@
         "http://maps.ufanet.ru/orenburg#1551184185",
         null
       ],
-      "current": false
+      "current": true
     },
     {
       "name": "Группа 2",
@@ -168,7 +168,7 @@
         null,
         null
       ],
-      "current": true
+      "current": false
     }
   ],
   "period": 1
