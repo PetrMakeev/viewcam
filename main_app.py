@@ -619,32 +619,6 @@ class MainApp(tk.Tk):
                     self.edit_camera_button.config(state=tk.NORMAL)
                     self.delete_camera_button.config(state=tk.NORMAL)
 
-    def edit_group(self):
-        if self.update_frames_id:
-            self.after_cancel(self.update_frames_id)
-        self.set_frame_rate(5000)
-        dialog = CameraDialog(self, street=next((g for g in self.groups if g.get("current", False)), {}).get("name", ""), title="Изменить группу", is_group=True)
-        dialog.wait_window()
-        self.set_frame_rate(self.original_period)  # Восстанавливаем исходный period
-        if self.update_frames_id is None:
-            self.update_frames_id = self.after(self.period, self.update_frames)
-        if dialog.result:
-            new_name, _ = dialog.result
-            current_group = next((g for g in self.groups if g.get("current", False)), None)
-            if not current_group:
-                messagebox.showwarning("Ошибка", "Нет текущей группы для редактирования")
-                return
-            if new_name == current_group["name"]:
-                return
-            if not new_name:
-                messagebox.showwarning("Ошибка", "Название группы не может быть пустым")
-                return
-            if any(group["name"] == new_name for group in self.groups if group != current_group):
-                messagebox.showwarning("Ошибка", "Группа с таким названием уже существует")
-                return
-            current_group["name"] = new_name
-            save_config(self)
-            self.update_camera_list()
 
     def reload_drivers(self):
         self.start_load_group_to_drivers()
