@@ -55,6 +55,10 @@ class ChangePasswordWindow(tk.Toplevel):
         self.font = Font(family="Arial", size=11)
         self.parent = parent
 
+        # Флаги для отслеживания изменений
+        self.admin_modified = False
+        self.user_modified = False
+
         # Основной фрейм
         main_frame = tk.Frame(self)
         main_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
@@ -83,11 +87,11 @@ class ChangePasswordWindow(tk.Toplevel):
             self.user_password_entry.insert(0, "********")
             self.user_password_confirm_entry.insert(0, "********")
 
-        # Привязка события ввода текста для динамической проверки
-        self.admin_password_entry.bind("<KeyRelease>", self.check_passwords)
-        self.admin_password_confirm_entry.bind("<KeyRelease>", self.check_passwords)
-        self.user_password_entry.bind("<KeyRelease>", self.check_passwords)
-        self.user_password_confirm_entry.bind("<KeyRelease>", self.check_passwords)
+        # Привязка события ввода текста для динамической проверки и установки флагов модификации
+        self.admin_password_entry.bind("<KeyRelease>", lambda e: [self.set_modified('admin'), self.check_passwords(e)])
+        self.admin_password_confirm_entry.bind("<KeyRelease>", lambda e: [self.set_modified('admin'), self.check_passwords(e)])
+        self.user_password_entry.bind("<KeyRelease>", lambda e: [self.set_modified('user'), self.check_passwords(e)])
+        self.user_password_confirm_entry.bind("<KeyRelease>", lambda e: [self.set_modified('user'), self.check_passwords(e)])
 
         # Кнопки
         button_frame = tk.Frame(main_frame)
@@ -96,6 +100,13 @@ class ChangePasswordWindow(tk.Toplevel):
         Button(button_frame, text="Отмена", font=self.font, command=self.on_cancel, width=10).pack(side=tk.LEFT, padx=5)
         
         self.protocol("WM_DELETE_WINDOW", self.on_cancel)   
+
+    def set_modified(self, password_type):
+        """Установка флага модификации для админа или пользователя"""
+        if password_type == 'admin':
+            self.admin_modified = True
+        elif password_type == 'user':
+            self.user_modified = True
 
     def check_passwords(self, event=None):
         """Проверка совпадения паролей в реальном времени"""
@@ -120,50 +131,60 @@ class ChangePasswordWindow(tk.Toplevel):
             self.user_password_entry.config(bg="#FFFFFF")
             self.user_password_confirm_entry.config(bg="#FFFFFF")
 
-        self.update_idletasks()  # Обновить интерфейс для немедленного отображения
-
     def save_passwords(self):
-        admin_password = self.admin_password_entry.get()
-        admin_password_confirm = self.admin_password_confirm_entry.get()
-        user_password = self.user_password_entry.get()
-        user_password_confirm = self.user_password_confirm_entry.get()
-
-        # Проверка длины паролей
-        if not (8 <= len(admin_password) <= 12) :
-            messagebox.showerror("Ошибка", "Пароли должны быть длиной от 8 до 12 символов.")
-            return
-        if  not (3 <= len(user_password) <= 8):
-            messagebox.showerror("Ошибка", "Пароли должны быть длиной от 3 до 8 символов.")
-            return
-
-        # Проверка совпадения паролей
-        if admin_password != admin_password_confirm:
-            messagebox.showerror("Ошибка", "Пароли администратора не совпадают.")
-            return
-        if user_password != user_password_confirm:
-            messagebox.showerror("Ошибка", "Пароли пользователя не совпадают.")
-            return
-
-        # Проверка изменения паролей
-        admin_password_hash = hashlib.sha256(admin_password.encode('utf-8')).hexdigest()
-        user_password_hash = hashlib.sha256(user_password.encode('utf-8')).hexdigest()
         current_admin_hash = self.parent.config.get("admin_password")
         current_user_hash = self.parent.config.get("user_password")
+        changes_made = False
 
-        if admin_password_hash == current_admin_hash and user_password_hash == current_user_hash:
+        # Обработка пароля администратора (только если изменён или None)
+        if self.admin_modified or current_admin_hash is None:
+            admin_password = self.admin_password_entry.get()
+            admin_password_confirm = self.admin_password_confirm_entry.get()
+
+            # Проверка совпадения
+            if admin_password != admin_password_confirm:
+                messagebox.showerror("Ошибка", "Пароли администратора не совпадают.")
+                return
+
+            # Проверка длины
+            if not (8 <= len(admin_password) <= 12):
+                messagebox.showerror("Ошибка", "Пароль администратора должен быть длиной от 8 до 12 символов.")
+                return
+
+            admin_password_hash = hashlib.sha256(admin_password.encode('utf-8')).hexdigest()
+            if admin_password_hash != current_admin_hash:
+                self.parent.config["admin_password"] = admin_password_hash
+                changes_made = True
+                logger.info(f"[{time.strftime('%H:%M:%S')}] Admin password changed.")
+
+        # Обработка пароля пользователя (только если изменён или None)
+        if self.user_modified or current_user_hash is None:
+            user_password = self.user_password_entry.get()
+            user_password_confirm = self.user_password_confirm_entry.get()
+
+            # Проверка совпадения
+            if user_password != user_password_confirm:
+                messagebox.showerror("Ошибка", "Пароли пользователя не совпадают.")
+                return
+
+            # Проверка длины
+            if not (3 <= len(user_password) <= 8):
+                messagebox.showerror("Ошибка", "Пароль пользователя должен быть длиной от 3 до 8 символов.")
+                return
+
+            user_password_hash = hashlib.sha256(user_password.encode('utf-8')).hexdigest()
+            if user_password_hash != current_user_hash:
+                self.parent.config["user_password"] = user_password_hash
+                # Обновляем timestamp для user_password, если он изменён
+                timestamp_str = datetime.now().isoformat()
+                self.parent.config["user_password_timestamp"] = encrypt(timestamp_str)
+                changes_made = True
+                logger.info(f"[{time.strftime('%H:%M:%S')}] User password changed, timestamp updated.")
+
+        if not changes_made:
             messagebox.showinfo("Информация", "Пароли не изменены.")
             self.destroy()
             return
-
-        # Сохранение паролей, если они изменились
-        if admin_password_hash != current_admin_hash:
-            self.parent.config["admin_password"] = admin_password_hash
-        if user_password_hash != current_user_hash:
-            self.parent.config["user_password"] = user_password_hash
-            # Обновляем timestamp для user_password, если он изменён
-            timestamp_str = datetime.now().isoformat()
-            self.parent.config["user_password_timestamp"] = encrypt(timestamp_str)
-            logger.info(f"[{time.strftime('%H:%M:%S')}] User password changed, timestamp updated.")
 
         self.parent.save_config()
         messagebox.showinfo("Успех", "Пароли успешно сохранены. Пожалуйста, войдите заново.")
@@ -174,6 +195,7 @@ class ChangePasswordWindow(tk.Toplevel):
         super().destroy()
         self.parent.destroy()  # Закрываем окно авторизации
         self.parent.parent.destroy()  # Закрываем главное окно приложения
+        sys.exit(0)  # Гарантируем завершение
 
 class IntroWindow(tk.Toplevel):
     def __init__(self, parent):
@@ -363,3 +385,4 @@ class IntroWindow(tk.Toplevel):
         """Завершение приложения при нажатии на Отмена"""
         super().destroy()  # Вызываем стандартное закрытие Toplevel
         self.parent.destroy()  # Закрываем основное окно
+        sys.exit(0)  # Гарантируем завершение
