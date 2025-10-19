@@ -100,6 +100,8 @@ class ChangePasswordWindow(tk.Toplevel):
         Button(button_frame, text="Отмена", font=self.font, command=self.on_cancel, width=10).pack(side=tk.LEFT, padx=5)
         
         self.protocol("WM_DELETE_WINDOW", self.on_cancel)   
+        
+        self.admin_password_entry.focus_set()
 
     def set_modified(self, password_type):
         """Установка флага модификации для админа или пользователя"""
