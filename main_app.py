@@ -40,10 +40,14 @@ class MainApp(tk.Tk):
         self.nocam_photo = ImageTk.PhotoImage(self.original_nocam_image)
         self.noconnect_photo = ImageTk.PhotoImage(self.original_noconnect_image)
 
-        #self.withdraw()  # Скрываем основное окно до авторизации
+        self.withdraw()  # Скрываем основное окно до авторизации
     
         self.intro_window = IntroWindow(self)
         self.intro_window.grab_set()
+        self.intro_window.deiconify()
+        self.intro_window.focus_set()
+        self.intro_window.password_entry.focus_set()
+
         
         ui_main_render(self)
 
@@ -90,8 +94,10 @@ class MainApp(tk.Tk):
         
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        # прячем окно авторизации
+        # прячем окно авторизации показываем основное окно
         self.intro_window.withdraw()
+        self.intro_window.grab_release()
+        self.deiconify()
         
     def on_resize(self, event):
             # Debounce: отменяем предыдущий вызов и планируем новый

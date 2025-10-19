@@ -80,8 +80,8 @@ class ChangePasswordWindow(tk.Toplevel):
             self.admin_password_entry.insert(0, "************")
             self.admin_password_confirm_entry.insert(0, "************")
         if self.parent.config.get("user_password") is not None:
-            self.user_password_entry.insert(0, "************")
-            self.user_password_confirm_entry.insert(0, "************")
+            self.user_password_entry.insert(0, "********")
+            self.user_password_confirm_entry.insert(0, "********")
 
         # Привязка события ввода текста для динамической проверки
         self.admin_password_entry.bind("<KeyRelease>", self.check_passwords)
@@ -129,8 +129,11 @@ class ChangePasswordWindow(tk.Toplevel):
         user_password_confirm = self.user_password_confirm_entry.get()
 
         # Проверка длины паролей
-        if not (8 <= len(admin_password) <= 12) or not (8 <= len(user_password) <= 12):
+        if not (8 <= len(admin_password) <= 12) :
             messagebox.showerror("Ошибка", "Пароли должны быть длиной от 8 до 12 символов.")
+            return
+        if  not (3 <= len(user_password) <= 8):
+            messagebox.showerror("Ошибка", "Пароли должны быть длиной от 3 до 8 символов.")
             return
 
         # Проверка совпадения паролей
@@ -211,7 +214,7 @@ class IntroWindow(tk.Toplevel):
         self.button_frame.pack(pady=10)
         Button(self.button_frame, text="Вход", font=self.font, command=self.on_ok).pack(side=tk.LEFT, padx=5)
         Button(self.button_frame, text="Отмена", font=self.font, command=self.on_cancel).pack(side=tk.LEFT, padx=5)
-        
+       
         # Иконка окна
         try:
             self.iconbitmap(resource_path("resource/eye.ico"))
@@ -221,6 +224,9 @@ class IntroWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.on_cancel)        
 
         self.config = self.load_config()
+        
+        self.focus_set()
+        self.password_entry.focus_set()
 
     def load_config(self):
         try:
@@ -321,13 +327,13 @@ class IntroWindow(tk.Toplevel):
                 # запускаем настройку основного окна
                 self.overrideredirect()
                 # Показать основное приложение
-                #self.parent.deiconify()  # Показываем MainApp
+                self.parent.deiconify()  # Показываем MainApp
+                self.deiconify()  # Показываем авторизацию 
                 self.login_combobox.config(state=tk.DISABLED)
                 self.password_entry.config(state=tk.DISABLED)
                 
-                time.sleep(1)
                 self.parent.setup_app()
-                self.grab_release()
+
             else:
                 messagebox.showerror("Ошибка", f"Неверный пароль. Осталось попыток: {3 - self.login_attempts_count}")
                 if self.login_attempts_count >= 3:
