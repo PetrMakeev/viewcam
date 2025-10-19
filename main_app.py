@@ -281,7 +281,7 @@ class MainApp(tk.Tk):
             except Exception as e:
                 error_msg = f"[{time.strftime('%H:%M:%S')}] Error loading for cell {i}: {str(e)}"
                 logger.error(error_msg)
-                messagebox.showerror("Ошибка загрузки", error_msg)
+                #messagebox.showerror("Ошибка загрузки", error_msg)
 
     def expand_tree(self):
         for item in self.tree.get_children():
