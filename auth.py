@@ -321,7 +321,13 @@ class IntroWindow(tk.Toplevel):
                 # запускаем настройку основного окна
                 self.overrideredirect()
                 # Показать основное приложение
-                self.parent.deiconify()  # Показываем MainApp
+                #self.parent.deiconify()  # Показываем MainApp
+                self.login_combobox.config(state=tk.DISABLED)
+                self.password_entry.config(state=tk.DISABLED)
+                
+                time.sleep(1)
+                self.parent.setup_app()
+                self.grab_release()
             else:
                 messagebox.showerror("Ошибка", f"Неверный пароль. Осталось попыток: {3 - self.login_attempts_count}")
                 if self.login_attempts_count >= 3:

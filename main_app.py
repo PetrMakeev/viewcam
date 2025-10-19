@@ -40,10 +40,14 @@ class MainApp(tk.Tk):
         self.nocam_photo = ImageTk.PhotoImage(self.original_nocam_image)
         self.noconnect_photo = ImageTk.PhotoImage(self.original_noconnect_image)
 
-        ui_main_render(self)
-        
-        self.withdraw()  # Скрываем основное окно до авторизации
+        #self.withdraw()  # Скрываем основное окно до авторизации
+    
         self.intro_window = IntroWindow(self)
+        self.intro_window.grab_set()
+        
+        ui_main_render(self)
+
+        
                 
     def setup_app(self):
         self.cells = []
