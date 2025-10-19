@@ -64,7 +64,7 @@ class ChangePasswordWindow(tk.Toplevel):
         main_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
         # Поля для ввода нового пароля администратора
-        Label(main_frame, text="Новый пароль администратора:", font=self.font).pack(anchor="w", padx=5, pady=3)
+        Label(main_frame, text="Новый пароль администратора (8-12):", font=self.font).pack(anchor="w", padx=5, pady=3)
         self.admin_password_entry = Entry(main_frame, font=self.font, show="*")
         self.admin_password_entry.pack(fill=tk.X, padx=5, pady=3)
         Label(main_frame, text="Повторите пароль администратора:", font=self.font).pack(anchor="w", padx=5, pady=3)
@@ -72,7 +72,7 @@ class ChangePasswordWindow(tk.Toplevel):
         self.admin_password_confirm_entry.pack(fill=tk.X, padx=5, pady=3)
 
         # Поля для ввода нового пароля пользователя
-        Label(main_frame, text="Новый пароль пользователя:", font=self.font).pack(anchor="w", padx=5, pady=3)
+        Label(main_frame, text="Новый пароль пользователя (3-8):", font=self.font).pack(anchor="w", padx=5, pady=3)
         self.user_password_entry = Entry(main_frame, font=self.font, show="*")
         self.user_password_entry.pack(fill=tk.X, padx=5, pady=3)
         Label(main_frame, text="Повторите пароль пользователя:", font=self.font).pack(anchor="w", padx=5, pady=3)
