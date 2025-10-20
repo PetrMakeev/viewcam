@@ -70,14 +70,31 @@ class MainApp(tk.Tk):
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"[{time.strftime('%H:%M:%S')}] Opening ChangePasswordWindow from MainApp")
+        
+        ### ДОБАВЛЕНО ДЛЯ ЗАМЕДЛЕНИЯ: Отменяем обновление и устанавливаем медленный период
+        if self.update_frames_id:
+            self.after_cancel(self.update_frames_id)
+            self.update_frames_id = None  # Явно сбрасываем, чтобы избежать утечек
+        self.set_frame_rate(5000)  # Замедляем до 5 секунд
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Frame rate slowed down to 5000ms for ChangePasswordWindow")
+        ### КОНЕЦ ДОБАВЛЕНОГО
+                
         change_window = ChangePasswordWindow(self, require_change=False)  # Родитель — self (MainApp)
         change_window.deiconify()  # Явно показываем окно
         change_window.focus_set()  # Устанавливаем фокус
         change_window.grab_set()  # Захватываем фокус для модальности
         logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow created and displayed")
         self.wait_window(change_window)  # Ждём закрытия окна
-        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow closed, success={change_window.success}")        
-                
+        
+        ### ДОБАВЛЕНО ДЛЯ ЗАМЕДЛЕНИЯ: Восстанавливаем исходный период и перезапускаем обновление
+        self.set_frame_rate(self.original_period)  # Восстанавливаем исходный period
+        if self.update_frames_id is None:
+            self.update_frames_id = self.after(self.period, self.update_frames)  # Перезапускаем цикл обновления
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Frame rate restored to {self.original_period}ms after ChangePasswordWindow")
+        ### КОНЕЦ ДОБАВЛЕНОГО
+        
+        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow closed, success={change_window.success}")                
+        
     def setup_app(self):
         self.cells = []
         for i in range(3):
