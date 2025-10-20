@@ -400,12 +400,13 @@ class IntroWindow(tk.Toplevel):
                 # Добавлено для ролей: установка роли в MainApp
                 self.parent.user_role = "Администратор"  # Добавлено для ролей
                 
-                # Показываем основное окно и скрываем окно авторизации
+                # Прячем окно авторизации, показываем основное окно
                 self.withdraw()  # Скрываем IntroWindow
-                self.parent.deiconify()  # Показываем MainApp
-                self.deiconify()
                 self.grab_release()  # Освобождаем фокус
-                
+                self.parent.deiconify()  # Показываем MainApp
+                self.login_combobox.config(state=tk.DISABLED)
+                self.password_entry.config(state=tk.DISABLED)
+                self.parent.setup_app()  # Запускаем настройку приложения              
                 
                 # Если пароль по умолчанию, требуем смену
                 if admin_password_hash is None and password == default_password:
