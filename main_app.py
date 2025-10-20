@@ -19,7 +19,7 @@ from ui_components import CellFrame, CameraDialog, clean_config_data, open_ufane
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from auth import IntroWindow  # Добавлен импорт для IntroWindow
+from auth import IntroWindow, ChangePasswordWindow  # Добавлен импорт для IntroWindow
 
 
 # Настройка logging в файл
@@ -40,6 +40,8 @@ class MainApp(tk.Tk):
         self.nocam_photo = ImageTk.PhotoImage(self.original_nocam_image)
         self.noconnect_photo = ImageTk.PhotoImage(self.original_noconnect_image)
 
+        self.config = None  # Инициализируем config, будет установлен в IntroWindow
+        
         self.withdraw()  # Скрываем основное окно до авторизации
     
         self.intro_window = IntroWindow(self)
@@ -48,9 +50,31 @@ class MainApp(tk.Tk):
         self.intro_window.focus_set()
         self.intro_window.password_entry.focus_set()
 
-        
         ui_main_render(self)
+        
+    def save_config(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        try:
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=2)
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Config saved to config.json.")
+        except Exception as e:
+            logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
+            messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
 
+
+    def _open_password_window(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Opening ChangePasswordWindow from MainApp")
+        change_window = ChangePasswordWindow(self, require_change=False)  # Родитель — self (MainApp)
+        change_window.deiconify()  # Явно показываем окно
+        change_window.focus_set()  # Устанавливаем фокус
+        change_window.grab_set()  # Захватываем фокус для модальности
+        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow created and displayed")
+        self.wait_window(change_window)  # Ждём закрытия окна
+        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow closed, success={change_window.success}")
         
                 
     def setup_app(self):

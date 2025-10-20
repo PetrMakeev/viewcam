@@ -37,11 +37,15 @@ def decrypt(encrypted, key='orenburg_secret'):
     return ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(encrypted, key))
 
 class ChangePasswordWindow(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, require_change=False):
         super().__init__(parent)
+        print(f"ChangePasswordWindow initialized with parent={parent}, require_change={require_change}")
+        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow initialized with parent={parent}, require_change={require_change}")
         self.title("Смена паролей")
         self.transient(parent)
         self.grab_set()
+        self.require_change = require_change  # Новый параметр
+        self.success = False  # Новый флаг: True, если пароли успешно изменены
 
         # Размер окна
         window_width = 400
@@ -99,7 +103,7 @@ class ChangePasswordWindow(tk.Toplevel):
         Button(button_frame, text="Сохранить", font=self.font, command=self.save_passwords, width=10).pack(side=tk.LEFT, padx=5)
         Button(button_frame, text="Отмена", font=self.font, command=self.on_cancel, width=10).pack(side=tk.LEFT, padx=5)
         
-        self.protocol("WM_DELETE_WINDOW", self.on_cancel)   
+        self.protocol("WM_DELETE_WINDOW", self.on_cancel)  # Изменено: вызов on_cancel (но on_cancel теперь не закрывает всё) 
         
         self.admin_password_entry.focus_set()
 
@@ -133,9 +137,16 @@ class ChangePasswordWindow(tk.Toplevel):
             self.user_password_entry.config(bg="#FFFFFF")
             self.user_password_confirm_entry.config(bg="#FFFFFF")
 
+    # В классе ChangePasswordWindow: Изменить save_passwords
     def save_passwords(self):
-        current_admin_hash = self.parent.config.get("admin_password")
-        current_user_hash = self.parent.config.get("user_password")
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        print(f"save_passwords called with parent={self.parent}, has_config={hasattr(self.parent, 'config')}")
+        logger.info(f"[{time.strftime('%H:%M:%S')}] save_passwords called with parent={self.parent}, has_config={hasattr(self.parent, 'config')}")
+        
+        current_admin_hash = self.parent.config.get("admin_password") if hasattr(self.parent, 'config') else self.parent.intro_window.config.get("admin_password")
+        current_user_hash = self.parent.config.get("user_password") if hasattr(self.parent, 'config') else self.parent.intro_window.config.get("user_password")
         changes_made = False
 
         # Обработка пароля администратора (только если изменён или None)
@@ -155,7 +166,10 @@ class ChangePasswordWindow(tk.Toplevel):
 
             admin_password_hash = hashlib.sha256(admin_password.encode('utf-8')).hexdigest()
             if admin_password_hash != current_admin_hash:
-                self.parent.config["admin_password"] = admin_password_hash
+                if hasattr(self.parent, 'config'):
+                    self.parent.config["admin_password"] = admin_password_hash
+                else:
+                    self.parent.intro_window.config["admin_password"] = admin_password_hash
                 changes_made = True
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Admin password changed.")
 
@@ -176,10 +190,16 @@ class ChangePasswordWindow(tk.Toplevel):
 
             user_password_hash = hashlib.sha256(user_password.encode('utf-8')).hexdigest()
             if user_password_hash != current_user_hash:
-                self.parent.config["user_password"] = user_password_hash
-                # Обновляем timestamp для user_password, если он изменён
-                timestamp_str = datetime.now().isoformat()
-                self.parent.config["user_password_timestamp"] = encrypt(timestamp_str)
+                if hasattr(self.parent, 'config'):
+                    self.parent.config["user_password"] = user_password_hash
+                    # Обновляем timestamp для user_password, если он изменён
+                    timestamp_str = datetime.now().isoformat()
+                    self.parent.config["user_password_timestamp"] = encrypt(timestamp_str)
+                else:
+                    self.parent.intro_window.config["user_password"] = user_password_hash
+                    # Обновляем timestamp для user_password, если он изменён
+                    timestamp_str = datetime.now().isoformat()
+                    self.parent.intro_window.config["user_password_timestamp"] = encrypt(timestamp_str)
                 changes_made = True
                 logger.info(f"[{time.strftime('%H:%M:%S')}] User password changed, timestamp updated.")
 
@@ -188,16 +208,18 @@ class ChangePasswordWindow(tk.Toplevel):
             self.destroy()
             return
 
-        self.parent.save_config()
-        messagebox.showinfo("Успех", "Пароли успешно сохранены. Пожалуйста, войдите заново.")
-        self.on_cancel()
+        # Сохраняем конфигурацию
+        if hasattr(self.parent, 'config'):
+            self.parent.save_config()
+        else:
+            self.parent.intro_window.save_config()
+        messagebox.showinfo("Успех", "Пароли успешно сохранены.")
+        self.success = True
+        self.destroy()
 
     def on_cancel(self):
-        """Завершение приложения при закрытии окна"""
-        super().destroy()
-        self.parent.destroy()  # Закрываем окно авторизации
-        self.parent.parent.destroy()  # Закрываем главное окно приложения
-        sys.exit(0)  # Гарантируем завершение
+        """Завершение только окна смены пароля"""
+        self.destroy()  # Изменено: только destroy этого окна, без закрытия parent и sys.exit()
 
 class IntroWindow(tk.Toplevel):
     def __init__(self, parent):
@@ -238,7 +260,7 @@ class IntroWindow(tk.Toplevel):
         self.button_frame.pack(pady=10)
         Button(self.button_frame, text="Вход", font=self.font, command=self.on_ok).pack(side=tk.LEFT, padx=5)
         Button(self.button_frame, text="Отмена", font=self.font, command=self.on_cancel).pack(side=tk.LEFT, padx=5)
-       
+    
         # Иконка окна
         try:
             self.iconbitmap(resource_path("resource/eye.ico"))
@@ -248,6 +270,7 @@ class IntroWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.on_cancel)        
 
         self.config = self.load_config()
+        self.parent.config = self.config  # Передаём конфигурацию в MainApp
         
         self.focus_set()
         self.password_entry.focus_set()
@@ -295,6 +318,8 @@ class IntroWindow(tk.Toplevel):
         return f"{day}%{year}@Admin#{month}"
 
     def on_ok(self):
+        import logging
+        logger = logging.getLogger(__name__)  # Добавлено для явного логирования
         if self.login_attempts_count >= 3:
             messagebox.showerror("Ошибка", "Превышено количество попыток входа (3).")
             self.config.setdefault("login_attempts", []).append({
@@ -348,16 +373,13 @@ class IntroWindow(tk.Toplevel):
                 success_label = Label(self.main_frame, text="Вход выполнен. Подключение ...", font=("Arial", 12, "bold"), fg="green")
                 success_label.pack(before=self.button_frame, pady=5)
                 self.update()  # Обновить интерфейс для отображения надписи
-                # запускаем настройку основного окна
-                self.overrideredirect()
-                # Показать основное приложение
+                # Прячем окно авторизации, показываем основное окно
+                self.withdraw()  # Скрываем IntroWindow
+                self.grab_release()  # Освобождаем фокус
                 self.parent.deiconify()  # Показываем MainApp
-                self.deiconify()  # Показываем авторизацию 
                 self.login_combobox.config(state=tk.DISABLED)
                 self.password_entry.config(state=tk.DISABLED)
-                
-                self.parent.setup_app()
-
+                self.parent.setup_app()  # Запускаем настройку приложения
             else:
                 messagebox.showerror("Ошибка", f"Неверный пароль. Осталось попыток: {3 - self.login_attempts_count}")
                 if self.login_attempts_count >= 3:
@@ -372,10 +394,35 @@ class IntroWindow(tk.Toplevel):
 
             if self.hash_password(password) == admin_password_hash or (admin_password_hash is None and self.hash_password(password) == default_password_hash):
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Successful admin login")
+                
+                # Показываем основное окно и скрываем окно авторизации
+                self.withdraw()  # Скрываем IntroWindow
+                self.parent.deiconify()  # Показываем MainApp
+                self.deiconify()
+                self.grab_release()  # Освобождаем фокус
+                
+                
                 # Если пароль по умолчанию, требуем смену
                 if admin_password_hash is None and password == default_password:
+                    logger.info(f"[{time.strftime('%H:%M:%S')}] Default admin password detected, opening ChangePasswordWindow")
                     messagebox.showinfo("Требуется смена пароля", "Вы используете пароль по умолчанию. Пожалуйста, смените пароли.")
-                ChangePasswordWindow(self)
+                    change_window = ChangePasswordWindow(self, require_change=True)  # Создаём окно смены паролей
+                    change_window.deiconify()  # Явно показываем окно
+                    change_window.focus_set()  # Устанавливаем фокус
+                    change_window.grab_set()  # Захватываем фокус
+                    logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow created and displayed")
+                    self.wait_window(change_window)  # Ждём закрытия окна смены
+                    
+                    if change_window.success:
+                        logger.info(f"[{time.strftime('%H:%M:%S')}] Passwords changed successfully, proceeding to setup_app")
+                        self.parent.setup_app()  # После успешной смены запускаем setup_app
+                    else:
+                        logger.info(f"[{time.strftime('%H:%M:%S')}] Password change cancelled, closing application")
+                        self.parent.destroy()  # Если отмена, закрываем приложение
+                        sys.exit(0)
+                else:
+                    logger.info(f"[{time.strftime('%H:%M:%S')}] Non-default admin password, proceeding to setup_app")
+                    self.parent.setup_app()  # Для не-дефолтного сразу setup_app
             else:
                 messagebox.showerror("Ошибка", f"Неверный пароль. Осталось попыток: {3 - self.login_attempts_count}")
                 if self.login_attempts_count >= 3:

@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import webbrowser  # Добавлен импорт для работы с браузером
+from auth import ChangePasswordWindow
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
@@ -535,9 +536,20 @@ def ui_main_render(self):
     )
     self.open_map_button.pack(side=tk.LEFT, padx=5, pady=3)
     
+    self.open_set_button = Button(
+        controls_frame,
+        text="Пароли",
+        font=Font(family="Arial", size=11),
+        command=lambda: self._open_password_window(),
+        width=8
+    )
+    self.open_set_button.pack(side=tk.LEFT, padx=5, pady=3)
+
+    
     self.camera_frame = tk.Frame(self.right_frame, relief="sunken", borderwidth=2)
     self.camera_frame.pack(expand=True, fill=tk.BOTH)    
-    
+
+
 # настройка дерева    
 def toggle_structure_edit(self):
     if not self.is_editing_structure:
