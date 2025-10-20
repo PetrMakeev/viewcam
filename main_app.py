@@ -42,6 +42,9 @@ class MainApp(tk.Tk):
 
         self.config = None  # Инициализируем config, будет установлен в IntroWindow
         
+        # Добавлено для ролей: переменная для хранения роли (по умолчанию None)
+        self.user_role = None  # Добавлено для ролей
+        
         self.withdraw()  # Скрываем основное окно до авторизации
     
         self.intro_window = IntroWindow(self)
@@ -63,7 +66,6 @@ class MainApp(tk.Tk):
             logger.error(f"[{time.strftime('%H:%M:%S')}] Error saving config: {str(e)}")
             messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
 
-
     def _open_password_window(self):
         import logging
         logger = logging.getLogger(__name__)
@@ -74,8 +76,7 @@ class MainApp(tk.Tk):
         change_window.grab_set()  # Захватываем фокус для модальности
         logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow created and displayed")
         self.wait_window(change_window)  # Ждём закрытия окна
-        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow closed, success={change_window.success}")
-        
+        logger.info(f"[{time.strftime('%H:%M:%S')}] ChangePasswordWindow closed, success={change_window.success}")        
                 
     def setup_app(self):
         self.cells = []
