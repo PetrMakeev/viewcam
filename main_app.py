@@ -123,6 +123,16 @@ class MainApp(tk.Tk):
         self.intro_window.grab_release()
         self.deiconify()
         
+        # Добавлено для ролей: скрытие элементов для пользователя
+        if self.user_role == "Пользователь":  # Добавлено для ролей
+            logger.info(f"[{time.strftime('%H:%M:%S')}] User role detected: hiding admin controls")  # Добавлено для ролей
+            self.top_frame.pack_forget()  # Скрываем фрейм с кнопками над деревом  # Добавлено для ролей
+            self.edit_structure_button.pack_forget()  # Скрываем кнопку под деревом  # Добавлено для ролей
+            # Опционально: сообщение для пользователя (Вариант 3)
+            # messagebox.showinfo("Информация", "Вы вошли как Пользователь. Редактирование недоступно.")  # Добавлено для ролей (закомментировано, если не нужно)
+        else:  # Добавлено для ролей
+            logger.info(f"[{time.strftime('%H:%M:%S')}] Admin role detected: showing all controls")  # Добавлено для ролей
+        
     def on_resize(self, event):
             # Debounce: отменяем предыдущий вызов и планируем новый
             if self.resize_id:
