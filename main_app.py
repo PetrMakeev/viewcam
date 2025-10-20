@@ -218,9 +218,18 @@ class MainApp(tk.Tk):
         self.full_update = False
         modal = Toplevel(self)
         modal.title(cam["street"])
-        modal.geometry(self.geometry())
+        # Изменено: уменьшаем размер на 100 пикселей и центрируем
+        new_width = max(200, self.winfo_width() - 100)
+        new_height = max(200, self.winfo_height() - 100)
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - new_width) // 2
+        y = (screen_height - new_height) // 2
+        modal.geometry(f"{new_width}x{new_height}+{x}+{y}")
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Modal window sized to {new_width}x{new_height} at position +{x}+{y}")
         modal.transient(self)
         modal.grab_set()
+        modal.focus_set()
         modal.bind("<Escape>", self.close_modal)
         modal_frame = tk.Frame(modal)
         modal_frame.pack(expand=True, fill=tk.BOTH)
@@ -237,13 +246,9 @@ class MainApp(tk.Tk):
         self.modal_image_size = (modal_width, modal_height)
         # Initial image
         if self.original_pil_images[cell_index]:
-            resized_modal = self.original_pil_images[cell_index].resize(self.modal_image_size, Image.LANCZOS)
+            resized_modal = self.original_pil_images[cell_index].resize((modal_width, modal_height), Image.LANCZOS)
             self.modal_photo = ImageTk.PhotoImage(resized_modal)
             self.modal_image_label.config(image=self.modal_photo)
-        # Cancel current update and schedule new
-        if self.update_frames_id:
-            self.after_cancel(self.update_frames_id)
-        self.update_frames_id = self.after(self.period, self.update_frames)
 
     def close_modal(self, event=None):
         if self.modal_window:
