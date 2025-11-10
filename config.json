@@ -138,7 +138,7 @@
         "http://maps.ufanet.ru/orenburg#1716193328PFM85",
         "http://maps.ufanet.ru/orenburg#1689135915DFD23"
       ],
-      "current": false
+      "current": true
     },
     {
       "name": "Новая группа 2025-10-15",
@@ -168,10 +168,10 @@
         null,
         null
       ],
-      "current": true
+      "current": false
     }
   ],
-  "period": 1,
+  "period": 2,
   "login_attempts": [
     {
       "user": "Администратор",

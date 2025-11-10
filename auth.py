@@ -394,23 +394,16 @@ class IntroWindow(tk.Toplevel):
             admin_password_hash = self.config.get("admin_password")
             default_password = self.get_default_admin_password()
             default_password_hash = self.hash_password(default_password)
+            is_default = (admin_password_hash is None and self.hash_password(password) == default_password_hash)
 
-            if self.hash_password(password) == admin_password_hash or (self.hash_password(password) == default_password_hash):
+            if self.hash_password(password) == admin_password_hash or self.hash_password(password) == default_password_hash:
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Successful admin login")
                 
                 # Добавлено для ролей: установка роли в MainApp
                 self.parent.user_role = "Администратор"  # Добавлено для ролей
                 
-                # Прячем окно авторизации, показываем основное окно
-                self.withdraw()  # Скрываем IntroWindow
-                self.grab_release()  # Освобождаем фокус
-                self.parent.deiconify()  # Показываем MainApp
-                self.login_combobox.config(state=tk.DISABLED)
-                self.password_entry.config(state=tk.DISABLED)
-                self.parent.setup_app()  # Запускаем настройку приложения              
-                
-                # Если пароль по умолчанию, требуем смену
-                if admin_password_hash is None and password == default_password:
+                # Если пароль по умолчанию, требуем смену перед показом приложения
+                if is_default:
                     logger.info(f"[{time.strftime('%H:%M:%S')}] Default admin password detected, opening ChangePasswordWindow")
                     messagebox.showinfo("Требуется смена пароля", "Вы используете пароль по умолчанию. Пожалуйста, смените пароли.")
                     change_window = ChangePasswordWindow(self, require_change=True)  # Создаём окно смены паролей
@@ -421,15 +414,21 @@ class IntroWindow(tk.Toplevel):
                     self.wait_window(change_window)  # Ждём закрытия окна смены
                     
                     if change_window.success:
-                        logger.info(f"[{time.strftime('%H:%M:%S')}] Passwords changed successfully, proceeding to setup_app")
-                        self.parent.setup_app()  # После успешной смены запускаем setup_app
+                        logger.info(f"[{time.strftime('%H:%M:%S')}] Passwords changed successfully, proceeding to show app")
                     else:
                         logger.info(f"[{time.strftime('%H:%M:%S')}] Password change cancelled, closing application")
                         self.parent.destroy()  # Если отмена, закрываем приложение
                         sys.exit(0)
-                else:
-                    logger.info(f"[{time.strftime('%H:%M:%S')}] Non-default admin password, proceeding to setup_app")
-                    self.parent.setup_app()  # Для не-дефолтного сразу setup_app
+                
+                # Показываем приложение только после обработки дефолтного пароля (если был)
+                if not is_default or change_window.success:
+                    # Прячем окно авторизации, показываем основное окно
+                    self.withdraw()  # Скрываем IntroWindow
+                    self.grab_release()  # Освобождаем фокус
+                    self.parent.deiconify()  # Показываем MainApp
+                    self.login_combobox.config(state=tk.DISABLED)
+                    self.password_entry.config(state=tk.DISABLED)
+                    self.parent.setup_app()  # Запускаем настройку приложения (один раз)
             else:
                 messagebox.showerror("Ошибка", f"Неверный пароль. Осталось попыток: {3 - self.login_attempts_count}")
                 if self.login_attempts_count >= 3:
