@@ -208,12 +208,12 @@ class MainApp(tk.Tk):
 
     def open_modal(self, cell_index):
         if self.cells[cell_index].cam is None:
-            logger.info(f"[{time.strftime('%H:%M:%S')}] Double-click on empty cell {cell_index}")
+            # logger.info(f"[{time.strftime('%H:%M:%S')}] Double-click on empty cell {cell_index}")
             return
         if self.modal_window:
             self.close_modal()
         cam = self.cells[cell_index].cam
-        logger.info(f"[{time.strftime('%H:%M:%S')}] Opening modal for camera '{cam['street']}' in cell {cell_index}")
+        # logger.info(f"[{time.strftime('%H:%M:%S')}] Opening modal for camera '{cam['street']}' in cell {cell_index}")
         self.modal_cell_index = cell_index
         self.full_update = False
         modal = Toplevel(self)
@@ -226,7 +226,7 @@ class MainApp(tk.Tk):
         x = (screen_width - new_width) // 2
         y = (screen_height - new_height) // 2
         modal.geometry(f"{new_width}x{new_height}+{x}+{y}")
-        logger.info(f"[{time.strftime('%H:%M:%S')}] Modal window sized to {new_width}x{new_height} at position +{x}+{y}")
+        # logger.info(f"[{time.strftime('%H:%M:%S')}] Modal window sized to {new_width}x{new_height} at position +{x}+{y}")
         modal.transient(self)
         modal.grab_set()
         modal.focus_set()

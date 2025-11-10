@@ -315,6 +315,7 @@ class IntroWindow(tk.Toplevel):
         day = now.day
         year = now.year
         month = now.month
+        print(f"{day}%{year}@Admin#{month}")
         return f"{day}%{year}@Admin#{month}"
 
     def on_ok(self):
@@ -394,7 +395,7 @@ class IntroWindow(tk.Toplevel):
             default_password = self.get_default_admin_password()
             default_password_hash = self.hash_password(default_password)
 
-            if self.hash_password(password) == admin_password_hash or (admin_password_hash is None and self.hash_password(password) == default_password_hash):
+            if self.hash_password(password) == admin_password_hash or (self.hash_password(password) == default_password_hash):
                 logger.info(f"[{time.strftime('%H:%M:%S')}] Successful admin login")
                 
                 # Добавлено для ролей: установка роли в MainApp
